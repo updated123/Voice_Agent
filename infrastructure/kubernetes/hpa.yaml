@@ -1,0 +1,16 @@
+# =============================================================================
+# kubernetes/hpa.yaml -- HorizontalPodAutoscaler policies (PLACEHOLDER)
+# =============================================================================
+#
+# Would define autoscaling targets keyed to concurrent-active-call metrics
+# published by analytics (not raw CPU%), per docs/architecture.md's
+# backpressure principle: the predictive dialer (scheduler) throttles new
+# dial attempts if pipeline queue depth exceeds a threshold, rather than
+# degrading in-call latency for calls already connected.
+#
+# Scale reference points (docs/scaling.md, conservative scenario):
+#   - stt-service:      ~22,222 GPU replicas at peak
+#   - llm-gateway:       ~5,556 GPU replicas at peak
+#   - tts-service:      ~11,111 GPU replicas at peak
+#   - call-orchestrator: ~1 lightweight replica per concurrent call (~2.2M)
+# =============================================================================

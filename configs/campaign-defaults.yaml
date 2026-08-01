@@ -1,0 +1,11 @@
+# =============================================================================
+# configs/campaign-defaults.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would define default campaign-level parameters consumed by scheduler:
+#   - target_answer_rate (used for dial-pacing math, docs/scaling.md)
+#   - peak_multiplier / operating_hours (mirrors benchmarks/cost_calculator.py
+#     Assumptions, kept in sync so campaign pacing and the cost model agree)
+#   - escalation_rate target (docs/cost-analysis.md's dominant cost lever)
+#   - retry policy for no-answer/voicemail outcomes
+# =============================================================================

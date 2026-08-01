@@ -1,0 +1,11 @@
+# =============================================================================
+# configs/calling-hours.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would define the permitted calling window enforced live by
+# services/scheduler on every dial decision (docs/security.md):
+#   - window_start_hour / window_end_hour, per jurisdiction (e.g. US
+#     FDCPA-style 8am-9pm local; India TRAI/RBI-aligned windows differ)
+#   - holiday/blackout-date overrides
+#   - per-region overrides where local regulation differs from the default
+# =============================================================================

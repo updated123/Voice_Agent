@@ -1,0 +1,48 @@
+%% deployment-diagram.mmd — infra topology at hyperscale
+%% Source for docs/deployment.md and docs/scaling.md.
+%% Render with: mmdc -i deployment-diagram.mmd -o deployment-diagram.png
+
+flowchart TB
+    subgraph Region["Per-region deployment (repeated across N active-active regions)"]
+        direction TB
+
+        subgraph CPUTier["CPU node pool (~1,500 media servers region-wide)"]
+            MS[Media Server Fleet]
+            VADS[vad-service]
+            DNS[denoiser]
+            SCHED[scheduler]
+            SESS[session-manager<br/>+ Redis Cluster]
+            ANALYTICS[analytics]
+            BILLING[billing]
+        end
+
+        subgraph GPUTier["GPU node pools (~39K GPUs region-wide, conservative)"]
+            STT["stt-service<br/>~22K GPUs"]
+            LLMGW["llm-gateway<br/>~5.5K GPUs"]
+            TTSS["tts-service<br/>~11K GPUs"]
+        end
+
+        subgraph CoordTier["Coordinator tier"]
+            ORCH["call-orchestrator<br/>~1 replica per concurrent call"]
+            COMP["compliance<br/>stateless, no GPU"]
+        end
+
+        NGINX[nginx edge / TLS termination]
+        KAFKA[(Kafka event backbone)]
+
+        NGINX --> ORCH
+        ORCH --> VADS
+        ORCH --> DNS
+        ORCH --> STT
+        ORCH --> LLMGW
+        ORCH --> COMP
+        ORCH --> TTSS
+        ORCH --> SESS
+        ORCH --> KAFKA
+        KAFKA --> ANALYTICS
+        KAFKA --> BILLING
+        SCHED --> ORCH
+    end
+
+    CARRIER[Multi-carrier SIP trunks] --> NGINX
+    Region -.->|active-active failover| Region2[Other Region]

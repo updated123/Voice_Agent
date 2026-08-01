@@ -1,0 +1,34 @@
+%% sequence-diagram.mmd — one call turn across service boundaries
+%% Source for docs/architecture.md's turn-by-turn walkthrough.
+%% Render with: mmdc -i sequence-diagram.mmd -o sequence-diagram.png
+
+sequenceDiagram
+    participant Borrower
+    participant Media as Media Server
+    participant VAD as vad-service
+    participant DNS as denoiser
+    participant STT as stt-service
+    participant ORCH as call-orchestrator
+    participant LLM as llm-gateway
+    participant COMP as compliance
+    participant SESS as session-manager
+    participant TTS as tts-service
+
+    Borrower->>Media: RTP audio
+    Media->>VAD: raw frame
+    VAD->>VAD: hangover-window end-of-speech check
+    VAD-->>DNS: speech frames only (silence dropped)
+    DNS-->>STT: denoised audio
+    STT-->>ORCH: transcript (partial, then final)
+    ORCH->>SESS: GET current call state
+    SESS-->>ORCH: state, slots
+    ORCH->>LLM: classify(text)
+    LLM-->>ORCH: intent
+    ORCH->>COMP: transition(current_state, intent)
+    COMP-->>ORCH: next_state, response_text, should_escalate
+    ORCH->>SESS: PATCH state, transcript_entry
+    ORCH->>TTS: synthesize/stream(response_text)
+    TTS-->>Media: audio chunks (streamed)
+    Media-->>Borrower: bot speech
+
+    Note over VAD,TTS: If VAD detects speech onset while<br/>TTS is still streaming: barge-in —<br/>orchestrator stops reading the TTS<br/>stream and processes the new utterance.

@@ -1,0 +1,429 @@
+<title>Real Vendor Pricing &amp; Latency Reference — Voice Agent Stack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4; --amber: #b8660f; --amber-soft: #f6e3cc;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --shadow: 0 1px 2px rgba(20,40,32,0.06), 0 8px 24px rgba(20,40,32,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+      --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+      --accent: #4fd1a5; --accent-soft: #15332a; --amber: #f2a154; --amber-soft: #3a2a15;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+    --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+    --accent: #4fd1a5; --accent-soft: #15332a; --amber: #f2a154; --amber-soft: #3a2a15;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4; --amber: #b8660f; --amber-soft: #f6e3cc;
+    --shadow: 0 1px 2px rgba(20,40,32,0.06), 0 8px 24px rgba(20,40,32,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+  body { padding: 32px 20px 72px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 8px;
+  }
+  h1 { font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; margin: 0 0 10px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--text-dim); font-size: 14.5px; max-width: 70ch; line-height: 1.6; margin: 0 0 6px; }
+  .verified {
+    display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px;
+    color: var(--text-faint); margin-top: 10px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  .warning {
+    background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    border-radius: 10px; padding: 14px 16px; margin: 22px 0; font-size: 13px; line-height: 1.6; color: var(--text);
+  }
+  .warning b { color: var(--amber); }
+
+  section { margin-top: 34px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  h2 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.005em; }
+  .section-note { font-size: 12.5px; color: var(--text-dim); margin: 4px 0 14px; line-height: 1.55; max-width: 74ch; }
+
+  .table-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-faint); font-weight: 600; padding: 10px 14px;
+    background: var(--panel-2); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.price { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  td.provider { font-weight: 600; white-space: nowrap; }
+  td.note { color: var(--text-dim); font-size: 12.5px; line-height: 1.5; }
+  td.src a { color: var(--accent); text-decoration: none; font-size: 12px; white-space: nowrap; }
+  td.src a:hover { text-decoration: underline; }
+  .cheapest { position: relative; }
+  .cheapest::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent);
+  }
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+    padding: 1px 7px; border-radius: 100px; background: var(--accent-soft); color: var(--accent); margin-left: 6px;
+  }
+  .tag.secondary { background: var(--amber-soft); color: var(--amber); }
+
+  footer { margin-top: 40px; font-size: 11.5px; color: var(--text-faint); line-height: 1.7; max-width: 90ch; }
+  footer code { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Sourced, not assumed</p>
+  <h1>Real vendor pricing &amp; latency reference — voice agent stack</h1>
+  <p class="sub">
+    Every figure below — cost <i>and</i> latency — is a number pulled from a vendor's page, a vendor's
+    own docs/benchmarks, or an independent benchmark, with the source linked on each row. Nothing is
+    derived from a formula or an assumed unit cost/latency. Cross-check the linked source before relying
+    on any number here for a real budget or SLA: provider figures change often, and several rows are
+    from third-party trackers rather than the vendor's own page (flagged where that's the case).
+  </p>
+  <div class="verified"><span class="dot"></span>Compiled July 2026</div>
+
+  <div class="warning">
+    <b>Read before using these numbers.</b> A few of these rates (marked <span class="tag secondary">secondary source</span>)
+    come from pricing-aggregator blogs, not the vendor's own pricing page — used only where an
+    official page didn't surface a clear number in search (e.g. India telephony per-minute rates).
+    Treat those as directional, not contractual.
+  </div>
+
+  <section>
+    <div class="section-head"><h2>Speech-to-text (STT / ASR)</h2></div>
+    <p class="section-note">Priced per minute of audio processed.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Model / tier</th><th>Price</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td class="provider">Google Cloud</td><td>Speech-to-Text V2, Dynamic Batch</td><td class="price">~$0.003/min</td><td class="note">24-hour turnaround batch tier</td><td class="src"><a href="https://cloud.google.com/speech-to-text/pricing" target="_blank" rel="noopener">cloud.google.com</a></td></tr>
+          <tr><td class="provider">OpenAI</td><td>gpt-4o-mini-transcribe</td><td class="price">$0.003/min</td><td class="note">$0.18/hour equivalent</td><td class="src"><a href="https://convertaudiototext.com/blog/openai-whisper-api-pricing-2026" target="_blank" rel="noopener">convertaudiototext.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Deepgram</td><td>Nova-3, pre-recorded (batch)</td><td class="price">$0.0043/min</td><td class="note">Mono audio; +$0.0009/min for multi-channel</td><td class="src"><a href="https://www.buildmvpfast.com/api-costs/transcription" target="_blank" rel="noopener">buildmvpfast.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Deepgram</td><td>Pay-as-you-go, streaming</td><td class="price">$0.0048/min</td><td class="note">~$0.29/audio-hour before add-ons</td><td class="src"><a href="https://smallest.ai/blog/deepgram-pricing-plans-cost-what-you-get-in-2026" target="_blank" rel="noopener">smallest.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">OpenAI</td><td>whisper-1 / gpt-4o-transcribe</td><td class="price">$0.006/min</td><td class="note">$0.36/hour equivalent</td><td class="src"><a href="https://diyai.io/ai-tools/speech-to-text/openai-whisper-api-pricing-2026/" target="_blank" rel="noopener">diyai.io</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Deepgram</td><td>Nova-3, streaming (real-time)</td><td class="price">$0.0077/min</td><td class="note">Real-time tier, higher than batch</td><td class="src"><a href="https://diyai.io/ai-tools/speech-to-text/deepgram-pricing-2026/" target="_blank" rel="noopener">diyai.io</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">OpenAI</td><td>gpt-realtime-whisper (live)</td><td class="price">~$0.017/min</td><td class="note">Real-time/live transcription tier</td><td class="src"><a href="https://diyai.io/ai-tools/speech-to-text/openai-whisper-api-pricing-2026/" target="_blank" rel="noopener">diyai.io</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Google Cloud</td><td>Speech-to-Text V2, real-time standard</td><td class="price">$0.016/min</td><td class="note">Drops to $0.008–$0.010/min at higher volume tiers</td><td class="src"><a href="https://cloud.google.com/speech-to-text/pricing" target="_blank" rel="noopener">cloud.google.com</a></td></tr>
+          <tr><td class="provider">Google Cloud</td><td>Speech-to-Text V1, Enhanced models</td><td class="price">$0.024/min</td><td class="note">—</td><td class="src"><a href="https://convertaudiototext.com/blog/google-cloud-speech-to-text-pricing-2026" target="_blank" rel="noopener">convertaudiototext.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr class="cheapest"><td class="provider">AssemblyAI</td><td>Universal-2, async (batch)</td><td class="price">$0.0025/min</td><td class="note">$0.15/hr — billed per second, no minimum</td><td class="src"><a href="https://www.assemblyai.com/blog/speech-to-text-api-pricing" target="_blank" rel="noopener">assemblyai.com</a></td></tr>
+          <tr><td class="provider">AssemblyAI</td><td>Universal-3.5 Pro, async (batch)</td><td class="price">$0.0035/min</td><td class="note">$0.21/hr</td><td class="src"><a href="https://www.assemblyai.com/blog/speech-to-text-api-pricing" target="_blank" rel="noopener">assemblyai.com</a></td></tr>
+          <tr><td class="provider">Azure AI Speech</td><td>Batch transcription</td><td class="price">$0.003/min</td><td class="note">$0.18/hr</td><td class="src"><a href="https://brasstranscripts.com/blog/azure-speech-services-pricing-2025-microsoft-ecosystem-costs" target="_blank" rel="noopener">brasstranscripts.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Azure AI Speech</td><td>Fast transcription</td><td class="price">$0.006/min</td><td class="note">$0.36/hr</td><td class="src"><a href="https://brasstranscripts.com/blog/azure-speech-services-pricing-2025-microsoft-ecosystem-costs" target="_blank" rel="noopener">brasstranscripts.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">AssemblyAI</td><td>Streaming (Universal-3.5 Pro Realtime)</td><td class="price">$0.0075/min</td><td class="note">$0.45/hr; integrated Voice Agent API (STT+LLM+TTS) is a flat $4.50/hr</td><td class="src"><a href="https://www.assemblyai.com/blog/speech-to-text-api-pricing" target="_blank" rel="noopener">assemblyai.com</a></td></tr>
+          <tr><td class="provider">AWS Transcribe</td><td>Standard, tier 4 (5M+ min/mo)</td><td class="price">$0.0078/min</td><td class="note">Volume tier — tier 1 (0-250K min) is $0.024/min</td><td class="src"><a href="https://brasstranscripts.com/blog/aws-transcribe-pricing-per-minute-2025-better-alternative" target="_blank" rel="noopener">brasstranscripts.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Azure AI Speech</td><td>Standard, real-time</td><td class="price">$0.0167/min</td><td class="note">$1/hour; drops to $0.50/hr at 50,000 hr/year committed volume</td><td class="src"><a href="https://learn.microsoft.com/en-us/answers/questions/2155625/speech-to-text-costing-1-hr-is-crazy-no-bulk-avail" target="_blank" rel="noopener">learn.microsoft.com</a></td></tr>
+          <tr><td class="provider">AWS Transcribe</td><td>Standard, tier 1 (0-250K min/mo)</td><td class="price">$0.024/min</td><td class="note">+$0.0024/min PII redaction; Medical tier is $0.075/min</td><td class="src"><a href="https://costbench.com/software/ai-transcription-apis/aws-transcribe/" target="_blank" rel="noopener">costbench.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Speechmatics</td><td>Batch, Standard</td><td class="price">$0.80/hr (~$0.013/min)</td><td class="note">Enhanced batch tier is $1.04/hr; volume discounts above 500 hr/mo</td><td class="src"><a href="https://www.speechmatics.com/pricing" target="_blank" rel="noopener">speechmatics.com</a></td></tr>
+          <tr><td class="provider">Speechmatics</td><td>Real-time, Standard</td><td class="price">$1.04/hr (~$0.017/min)</td><td class="note">Enhanced real-time tier is $1.35/hr</td><td class="src"><a href="https://www.speechmatics.com/pricing" target="_blank" rel="noopener">speechmatics.com</a></td></tr>
+          <tr><td class="provider">NVIDIA</td><td>Parakeet / Riva (self-hosted)</td><td class="price">Free (compute only)</td><td class="note">Model weights CC-BY-4.0; Riva serving via NVIDIA AI Enterprise for production support</td><td class="src"><a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3" target="_blank" rel="noopener">huggingface.co</a></td></tr>
+          <tr><td class="provider">SYSTRAN</td><td>faster-whisper (self-hosted)</td><td class="price">Free (compute only)</td><td class="note">MIT license; CTranslate2 backend, up to 4x faster than reference Whisper</td><td class="src"><a href="https://github.com/SYSTRAN/faster-whisper" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">Alpha Cephei</td><td>Vosk (self-hosted, wraps Kaldi)</td><td class="price">Free (compute only)</td><td class="note">Offline, 20+ languages, ~50MB models — lightweight edge/on-device option</td><td class="src"><a href="https://github.com/alphacep/vosk-api" target="_blank" rel="noopener">github.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Text-to-speech (TTS)</h2></div>
+    <p class="section-note">Priced per 1,000 / per 1,000,000 characters synthesized.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Model / tier</th><th>Price</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Google Cloud</td><td>Standard / WaveNet voices</td><td class="price">$4 / 1M chars</td><td class="note">First 1–4M chars/month free depending on voice tier</td><td class="src"><a href="https://cloud.google.com/text-to-speech/pricing" target="_blank" rel="noopener">cloud.google.com</a></td></tr>
+          <tr><td class="provider">Amazon Polly</td><td>Standard voices</td><td class="price">$4 / 1M chars</td><td class="note">—</td><td class="src"><a href="https://texttolab.com/blog/amazon-polly-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Cartesia</td><td>Sonic (credit-based plans)</td><td class="price">~$5–37 / 1M chars</td><td class="note">1 credit/char; effective rate depends on plan tier ($4-299/mo)</td><td class="src"><a href="https://smallest.ai/blog/cartesia-pricing-plans-cost-what-you-get-in-2026" target="_blank" rel="noopener">smallest.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">ElevenLabs</td><td>Flash / Turbo models</td><td class="price">$50 / 1M chars</td><td class="note">$0.05 per 1,000 characters — the economical ElevenLabs tier</td><td class="src"><a href="https://elevenlabs.io/pricing/api" target="_blank" rel="noopener">elevenlabs.io</a></td></tr>
+          <tr><td class="provider">OpenAI</td><td>tts-1 / gpt-4o-mini-tts</td><td class="price">$15 / 1M chars</td><td class="note">gpt-4o-mini-tts also supports steerable voice instructions</td><td class="src"><a href="https://texttolab.com/blog/openai-tts-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Amazon Polly</td><td>Neural voices</td><td class="price">$16 / 1M chars</td><td class="note">1M chars/month free for first 12 months</td><td class="src"><a href="https://texttolab.com/blog/amazon-polly-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Azure AI Speech</td><td>Neural TTS</td><td class="price">$16 / 1M chars</td><td class="note">Neural HD tier runs $22–30/1M chars</td><td class="src"><a href="https://azure.microsoft.com/en-us/pricing/details/speech/" target="_blank" rel="noopener">azure.microsoft.com</a></td></tr>
+          <tr><td class="provider">OpenAI</td><td>tts-1-hd</td><td class="price">$30 / 1M chars</td><td class="note">Higher-fidelity tier</td><td class="src"><a href="https://texttolab.com/blog/openai-tts-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Amazon Polly</td><td>Generative voices</td><td class="price">$30 / 1M chars</td><td class="note">—</td><td class="src"><a href="https://texttolab.com/blog/amazon-polly-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">ElevenLabs</td><td>Multilingual v2 / v3</td><td class="price">$100 / 1M chars</td><td class="note">$0.10 per 1,000 characters — most expressive tier</td><td class="src"><a href="https://elevenlabs.io/pricing/api" target="_blank" rel="noopener">elevenlabs.io</a></td></tr>
+          <tr><td class="provider">Amazon Polly</td><td>Long-Form voices</td><td class="price">$100 / 1M chars</td><td class="note">Most expensive Polly tier</td><td class="src"><a href="https://texttolab.com/blog/amazon-polly-pricing" target="_blank" rel="noopener">texttolab.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">PlayHT</td><td>Creator plan</td><td class="price">$39/mo for 50K words</td><td class="note">Word-based subscription, not directly comparable per-character; ~5-6 chars/word implies roughly $130-160/1M chars</td><td class="src"><a href="https://voice.ai/hub/tts/play-ht-pricing/" target="_blank" rel="noopener">voice.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Rhasspy</td><td>Piper (self-hosted)</td><td class="price">Free (compute only)</td><td class="note">MIT license — fully commercial-use-safe</td><td class="src"><a href="https://github.com/matatonic/openedai-speech" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">Coqui</td><td>XTTS v2 (self-hosted)</td><td class="price">Free, non-commercial only</td><td class="note">Code is MPL 2.0 (commercial-safe); the trained model WEIGHTS are CPML-licensed — non-commercial use only</td><td class="src"><a href="https://github.com/coqui-ai/TTS/issues/3490" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">Fish Audio</td><td>Fish Speech (self-hosted)</td><td class="price">Free, non-commercial only</td><td class="note">"Fish Audio Research License" — commercial use requires a separate paid license from Fish Audio</td><td class="src"><a href="https://github.com/fishaudio/fish-speech" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">—</td><td>StyleTTS2 (self-hosted)</td><td class="price">Free (compute only)</td><td class="note">Core is MIT-licensed, but the standard inference path depends on a GPL-licensed component — check which build you use before shipping commercially</td><td class="src"><a href="https://github.com/yl4579/StyleTTS2" target="_blank" rel="noopener">github.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>LLM / NLU (per 1M tokens)</h2></div>
+    <p class="section-note">Input / output priced separately — output tokens typically cost 4–5x input.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Model</th><th>Input</th><th>Output</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Groq</td><td>Llama 3.1 8B</td><td class="price">$0.05/1M</td><td class="price">—</td><td class="src"><a href="https://www.cloudzero.com/blog/groq-pricing/" target="_blank" rel="noopener">cloudzero.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">OpenAI</td><td>GPT-4o mini</td><td class="price">$0.15/1M</td><td class="price">$0.60/1M</td><td class="src"><a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noopener">developers.openai.com</a></td></tr>
+          <tr><td class="provider">Google</td><td>Gemini 2.5 Flash (via Google AI Studio)</td><td class="price">$0.15–0.30/1M</td><td class="price">$2.50/1M</td><td class="src"><a href="https://openrouter.ai/google/gemini-2.5-flash" target="_blank" rel="noopener">openrouter.ai</a></td></tr>
+          <tr><td class="provider">Groq</td><td>Llama 3.3 70B Versatile</td><td class="price">$0.59/1M</td><td class="price">$0.79/1M</td><td class="src"><a href="https://www.cloudzero.com/blog/groq-pricing/" target="_blank" rel="noopener">cloudzero.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Anthropic</td><td>Claude Haiku 4.5</td><td class="price">$1/1M</td><td class="price">$5/1M</td><td class="src"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com</a></td></tr>
+          <tr><td class="provider">Anthropic</td><td>Claude Sonnet 5 (intro, through Aug 31 2026)</td><td class="price">$2/1M</td><td class="price">$10/1M</td><td class="src"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com</a></td></tr>
+          <tr><td class="provider">Anthropic</td><td>Claude Sonnet 5 (standard, from Sep 1 2026)</td><td class="price">$3/1M</td><td class="price">$15/1M</td><td class="src"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com</a></td></tr>
+          <tr><td class="provider">Anthropic</td><td>Claude Opus 4.8</td><td class="price">$5/1M</td><td class="price">$25/1M</td><td class="src"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com</a></td></tr>
+          <tr><td class="provider">Anthropic</td><td>Claude Fable 5</td><td class="price">$10/1M</td><td class="price">$50/1M</td><td class="src"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">platform.claude.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+    <p class="section-note" style="margin-top:10px;">Anthropic: batch processing is 50% cheaper across all models; prompt caching cuts cached-input cost by 90% — <a href="https://www.finout.io/blog/anthropic-api-pricing" target="_blank" rel="noopener" style="color:var(--accent)">finout.io</a> <span class="tag secondary">secondary</span>.</p>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>GPU compute (self-hosted STT/LLM/TTS)</h2></div>
+    <p class="section-note">Per-GPU, per-hour. AWS A100 is sold only in 8-GPU packs — the per-GPU figure below is that pack price divided by 8.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>GPU</th><th>Price / GPU-hr</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">RunPod</td><td>A100 80GB (Community Cloud)</td><td class="price">$1.39/hr</td><td class="note">Cheapest tier; Secure Cloud runs close to double</td><td class="src"><a href="https://www.thundercompute.com/blog/nvidia-a100-pricing" target="_blank" rel="noopener">thundercompute.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">RunPod</td><td>A100 SXM</td><td class="price">$1.49/hr</td><td class="note">—</td><td class="src"><a href="https://www.thundercompute.com/blog/nvidia-a100-pricing" target="_blank" rel="noopener">thundercompute.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Lambda Labs</td><td>A100 40GB, on-demand</td><td class="price">$1.99/hr</td><td class="note">No spot offering at Lambda — no interruptible discount available</td><td class="src"><a href="https://gpuperhour.com/providers/lambda-labs" target="_blank" rel="noopener">gpuperhour.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Lambda Labs</td><td>A100 80GB, on-demand</td><td class="price">$2.79/hr</td><td class="note">—</td><td class="src"><a href="https://www.synpixcloud.com/blog/lambda-labs-gpu-pricing-2026" target="_blank" rel="noopener">synpixcloud.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">AWS EC2</td><td>A100 (P4d/P4de, on-demand)</td><td class="price">~$2.75/hr</td><td class="note">8-GPU pack at $22/hr total, after a 33% cut applied June 2026</td><td class="src"><a href="https://www.datacenterdynamics.com/en/news/aws-cuts-costs-for-h100-h200-and-a100-instances-by-up-to-45/" target="_blank" rel="noopener">datacenterdynamics.com</a></td></tr>
+          <tr><td class="provider">RunPod</td><td>H100 PCIe (Community Cloud)</td><td class="price">$2.89/hr</td><td class="note">—</td><td class="src"><a href="https://www.spheron.network/blog/gpu-cloud-pricing-comparison-2026/" target="_blank" rel="noopener">spheron.network</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">RunPod</td><td>H100 SXM 80GB (Secure Cloud)</td><td class="price">$2.99/hr</td><td class="note">—</td><td class="src"><a href="https://www.thundercompute.com/blog/runpod-pricing-vs-thunder-compute" target="_blank" rel="noopener">thundercompute.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Lambda Labs</td><td>H100 PCIe 80GB</td><td class="price">$3.29/hr</td><td class="note">—</td><td class="src"><a href="https://www.spheron.network/blog/lambda-cloud-h100-pricing-2026/" target="_blank" rel="noopener">spheron.network</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Lambda Labs</td><td>H100 SXM 80GB</td><td class="price">$4.29/hr</td><td class="note">8-GPU configuration only; single-GPU PCIe cited elsewhere at $3.99/hr</td><td class="src"><a href="https://gpucost.org/provider/lambda" target="_blank" rel="noopener">gpucost.org</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Telephony (outbound voice, per minute)</h2></div>
+    <p class="section-note">US rates are from Twilio's own pricing; India rates did not surface a clear official Plivo/Exotel number in search, so a market-benchmark range from a secondary source is shown instead — flagged accordingly.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider / market</th><th>Tier</th><th>Price</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Telnyx</td><td>Voice API, base outbound</td><td class="price">$0.002/min</td><td class="note">Base rate — effective all-in cost ~$0.007/min once SIP trunking fees are added</td><td class="src"><a href="https://telnyx.com/resources/telnyx-vs-twilio-which-voice-api-is-better" target="_blank" rel="noopener">telnyx.com</a></td></tr>
+          <tr><td class="provider">Plivo</td><td>US outbound, from</td><td class="price">$0.0085/min</td><td class="note">Rate varies enormously by destination prefix — one specific US prefix ("1907") is listed at $0.179/min</td><td class="src"><a href="https://support.plivo.com/hc/en-us/articles/360041863911-How-can-I-calculate-the-cost-of-a-call" target="_blank" rel="noopener">support.plivo.com</a></td></tr>
+          <tr><td class="provider">India market (direct SIP)</td><td>Outbound to mobile, high-volume contract</td><td class="price">₹0.60–₹1.20/min</td><td class="note">Market benchmark, not one vendor's listed rate</td><td class="src"><a href="https://edesy.in/blog/multi-provider-telephony-india-comparison" target="_blank" rel="noopener">edesy.in</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">India market (via aggregator)</td><td>Outbound to mobile, high-volume contract</td><td class="price">₹0.80–₹1.80/min</td><td class="note">Market benchmark, not one vendor's listed rate</td><td class="src"><a href="https://edesy.in/blog/multi-provider-telephony-india-comparison" target="_blank" rel="noopener">edesy.in</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Twilio</td><td>US outbound, local/mobile</td><td class="price">$0.013/min</td><td class="note">Official Twilio rate</td><td class="src"><a href="https://edesy.in/tools/twilio-voice-pricing-us-outbound" target="_blank" rel="noopener">edesy.in</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Twilio</td><td>US outbound, toll-free</td><td class="price">$0.022/min</td><td class="note">+$0.0025/min if recording; transcription $0.05/15-sec block</td><td class="src"><a href="https://www.vbwebsol.com/twilio-call-rates/" target="_blank" rel="noopener">vbwebsol.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Exotel</td><td>India — no clear public per-minute rate</td><td class="price">Credit-based</td><td class="note">Billed in prepaid "credits" via bundled plans (₹9,999–₹49,499); official docs point to sales for per-minute pulse rates rather than publishing them</td><td class="src"><a href="https://developer.exotel.com/docs/faqs/pricing-plans" target="_blank" rel="noopener">developer.exotel.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <div class="warning">
+    <b>The categories below are mostly open-source, self-hosted components</b> — for these, "pricing"
+    genuinely is $0 beyond your own compute, which is real information, not a gap. Where a commercial
+    vendor exists, most (Pindrop, Nuance Gatekeeper, Veridas, ID R&D, NVIDIA Maxine, Krisp's call-center
+    SDK) do not publish per-unit pricing at all — enterprise-quote-only, noted explicitly rather than
+    guessed at.
+  </div>
+
+  <section>
+    <div class="section-head"><h2>VAD (voice activity detection)</h2></div>
+    <p class="section-note">Almost entirely open-source at the model level; Picovoice is the one commercial SDK with published tiers (for its platform generally, not confirmed Cobra-specific).</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>License / tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Silero VAD</td><td>MIT, self-hosted</td><td class="price">Free</td><td class="note">No telemetry, no keys, no expiration — trained on 100+ languages</td><td class="src"><a href="https://github.com/snakers4/silero-vad" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">WebRTC VAD</td><td>BSD, self-hosted</td><td class="price">Free</td><td class="note">Part of the WebRTC project; permissive for commercial use</td><td class="src"><a href="https://webrtc.googlesource.com/src/+/main/docs/faq.md" target="_blank" rel="noopener">webrtc.googlesource.com</a></td></tr>
+          <tr><td class="provider">pyannote.audio VAD</td><td>MIT, self-hosted</td><td class="price">Free</td><td class="note">Part of the broader pyannote.audio diarization toolkit</td><td class="src"><a href="https://github.com/pyannote/pyannote-audio" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">NVIDIA NeMo VAD</td><td>Open source, self-hosted</td><td class="price">Free (compute only)</td><td class="note">NeMo framework is open source; NVIDIA AI Enterprise adds paid production support</td><td class="src"><a href="https://www.nvidia.com/en-us/ai-data-science/products/nemo/get-started/" target="_blank" rel="noopener">nvidia.com</a></td></tr>
+          <tr><td class="provider">Picovoice Cobra</td><td>Commercial SDK</td><td class="price">Free ≤3 users; $899/mo for 1,000 users</td><td class="note">Pricing tier found is for Picovoice's platform broadly — Cobra-specific tier not separately confirmed</td><td class="src"><a href="https://www.hackster.io/news/picovoice-launches-completely-free-usage-tier-for-offline-voice-recognition-for-up-to-three-users-e1eafbc97bb0" target="_blank" rel="noopener">hackster.io</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Denoiser / noise suppression</h2></div>
+    <p class="section-note">The strongest open-source options (DeepFilterNet, RNNoise) are free; the enterprise SDKs (Krisp, NVIDIA Maxine) don't publish developer/call-center pricing.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>License / tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">RNNoise</td><td>BSD-3-Clause, self-hosted</td><td class="price">Free</td><td class="note">Xiph.Org — "the granddaddy of real-time neural denoising"</td><td class="src"><a href="https://noisereducerai.com/blogs/deepfilternet-ai-noise-reduction/" target="_blank" rel="noopener">noisereducerai.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">DeepFilterNet</td><td>MIT / Apache-2.0, self-hosted</td><td class="price">Free</td><td class="note">Dual-licensed, your choice — fully commercial-safe</td><td class="src"><a href="https://github.com/rikorose/deepfilternet" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">SpeexDSP</td><td>BSD, self-hosted</td><td class="price">Free</td><td class="note">Older, lighter-weight classical DSP denoiser</td><td class="src"><a href="https://webrtc.googlesource.com/src/+/main/docs/faq.md" target="_blank" rel="noopener">webrtc.googlesource.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">WebRTC Noise Suppression</td><td>BSD, self-hosted</td><td class="price">Free</td><td class="note">Bundled with WebRTC's AEC/AGC/VAD suite</td><td class="src"><a href="https://webrtc.googlesource.com/src/+/main/docs/faq.md" target="_blank" rel="noopener">webrtc.googlesource.com</a></td></tr>
+          <tr><td class="provider">Krisp SDK</td><td>Commercial, call-center/SDK tier</td><td class="price">Not published</td><td class="note">Consumer app is $8-30/mo, but that's explicitly NOT the SDK/call-center pricing — contact sales</td><td class="src"><a href="https://tekpon.com/software/krisp/pricing/" target="_blank" rel="noopener">tekpon.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">NVIDIA Maxine (Audio Effects)</td><td>Commercial SDK</td><td class="price">Not published</td><td class="note">Docs are technical-only; no pricing page found</td><td class="src"><a href="https://docs.nvidia.com/maxine/afx/2.0.0/index.html" target="_blank" rel="noopener">docs.nvidia.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Echo cancellation (AEC)</h2></div>
+    <p class="section-note">Same landscape as denoising — open-source DSP options are free and mature; commercial SDKs don't publish rates.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>License / tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">WebRTC AEC</td><td>BSD, self-hosted</td><td class="price">Free</td><td class="note">The AEC most production softphones/media-servers actually use</td><td class="src"><a href="https://webrtc.googlesource.com/src/+/main/docs/faq.md" target="_blank" rel="noopener">webrtc.googlesource.com</a></td></tr>
+          <tr><td class="provider">Speex AEC</td><td>BSD, self-hosted</td><td class="price">Free</td><td class="note">Older classical-DSP alternative to WebRTC's AEC</td><td class="src"><a href="http://startrinity.com/OpenSource/Aec/AecVadNoiseSuppressionLibrary.aspx" target="_blank" rel="noopener">startrinity.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">NVIDIA Maxine AEC</td><td>Commercial SDK</td><td class="price">Not published</td><td class="note">Bundled in the same Audio Effects SDK as Maxine's denoiser</td><td class="src"><a href="https://docs.nvidia.com/maxine/afx/2.0.0/index.html" target="_blank" rel="noopener">docs.nvidia.com</a></td></tr>
+          <tr><td class="provider">Krisp SDK</td><td>Commercial, call-center/SDK tier</td><td class="price">Not published</td><td class="note">Same caveat as Krisp's denoiser listing above</td><td class="src"><a href="https://tekpon.com/software/krisp/pricing/" target="_blank" rel="noopener">tekpon.com</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Speaker diarization</h2></div>
+    <p class="section-note">pyannote has both a free self-hosted path and a paid hosted API with a meaningfully better error rate.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>License / tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">pyannote.audio</td><td>MIT, self-hosted</td><td class="price">Free (GPU compute only)</td><td class="note">Free for research AND commercial use as of 2026</td><td class="src"><a href="https://github.com/pyannote/pyannote-audio" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">NVIDIA NeMo</td><td>Open source, self-hosted</td><td class="price">Free (compute only)</td><td class="note">—</td><td class="src"><a href="https://docs.nvidia.com/nemo/index.html" target="_blank" rel="noopener">docs.nvidia.com</a></td></tr>
+          <tr><td class="provider">AssemblyAI</td><td>Add-on to STT</td><td class="price">+$0.02/hr (async)</td><td class="note">On top of base transcription rate — see STT table above</td><td class="src"><a href="https://www.assemblyai.com/blog/speech-to-text-api-pricing" target="_blank" rel="noopener">assemblyai.com</a></td></tr>
+          <tr><td class="provider">pyannoteAI</td><td>Commercial hosted API</td><td class="price">€19–€99/month</td><td class="note">28% DER improvement over the open-source model; free trial: 150 hrs + 10 voiceprints</td><td class="src"><a href="https://www.pyannote.ai/pricing" target="_blank" rel="noopener">pyannote.ai</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Wake word / keyword spotting</h2></div>
+    <p class="section-note">OpenWakeWord and Mycroft Precise are the free, fully open path; Picovoice Porcupine is the commercial option with published enterprise-tier pricing.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>License / tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">openWakeWord</td><td>Open source, self-hosted</td><td class="price">Free</td><td class="note">Trainable on 100% synthetic data; runs on a single Raspberry Pi 3 core</td><td class="src"><a href="https://github.com/dscripka/openWakeWord" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">Mycroft Precise</td><td>Open source, self-hosted</td><td class="price">Free</td><td class="note">Fully open source; RNN-based, trained on sound patterns not words</td><td class="src"><a href="https://github.com/MycroftAI/mycroft-precise" target="_blank" rel="noopener">github.com</a></td></tr>
+          <tr><td class="provider">Picovoice Porcupine</td><td>Commercial, Starter tier</td><td class="price">$6,000/year</td><td class="note">100 monthly active devices; free tier exists but caps at 1 device with a watermarked model</td><td class="src"><a href="https://checkthat.ai/brands/picovoice/pricing" target="_blank" rel="noopener">checkthat.ai</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Voice biometrics</h2></div>
+    <p class="section-note">The inverse of every other category here — every enterprise vendor is quote-only, and Azure is the sole provider that publishes a free-tier transaction count.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Tier</th><th>Cost</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Azure Speaker Recognition</td><td>Free tier</td><td class="price">10,000 transactions/mo free</td><td class="note">Paid per-transaction rate beyond free tier not published in search results — check Azure pricing calculator directly</td><td class="src"><a href="https://azure.microsoft.com/en-us/pricing/details/speech/" target="_blank" rel="noopener">azure.microsoft.com</a></td></tr>
+          <tr><td class="provider">Pindrop</td><td>Enterprise</td><td class="price">Not published</td><td class="note">Sold exclusively to enterprises; quote-only</td><td class="src"><a href="https://reviews.financesonline.com/p/pindrop/" target="_blank" rel="noopener">reviews.financesonline.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Nuance Gatekeeper</td><td>Enterprise</td><td class="price">Not published</td><td class="note">Free trial available; no public pricing found</td><td class="src"><a href="https://www.softwareworld.co/software/nuance-gatekeeper-reviews/" target="_blank" rel="noopener">softwareworld.co</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Veridas</td><td>Enterprise</td><td class="price">Not published</td><td class="note">Usage/user-volume-based custom licensing</td><td class="src"><a href="https://beverified.org/providers/veridas/" target="_blank" rel="noopener">beverified.org</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">ID R&D</td><td>Enterprise</td><td class="price">Not published</td><td class="note">Acquired by Mitek Systems; quote-only</td><td class="src"><a href="https://www.cbinsights.com/compare/idrnd-vs-veridas" target="_blank" rel="noopener">cbinsights.com</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <div class="warning">
+    <b>Latency numbers are the messiest data to source honestly.</b> Vendors report best-case internal
+    numbers (often model-inference-only, or "time to first byte" including non-audio container headers);
+    independent benchmarks measuring real end-to-end delivery are consistently 2&ndash;4x higher and vary
+    by provider region and account tier. Both are shown below, labeled, rather than picking one.
+  </div>
+
+  <section>
+    <div class="section-head"><h2>STT latency (streaming, end-of-audio → transcript)</h2></div>
+    <p class="section-note">Reported end-to-end, not model-compute-only, where the source specifies.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Claim</th><th>Latency</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Google Cloud STT</td><td>Internal benchmark</td><td class="price">200–250ms</td><td class="note">Best-case internal figure — see real-world row below</td><td class="src"><a href="https://picovoice.ai/blog/speech-to-text-latency/" target="_blank" rel="noopener">picovoice.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Deepgram Nova-3</td><td>Vendor claim, streaming</td><td class="price">&lt;300ms</td><td class="note">"Average end-to-end," well below the ~500ms usability threshold Deepgram cites</td><td class="src"><a href="https://deepgram.com/learn/speech-to-text-benchmarks" target="_blank" rel="noopener">deepgram.com</a></td></tr>
+          <tr><td class="provider">OpenAI gpt-4o-transcribe</td><td>Vendor-adjacent benchmark</td><td class="price">~320ms</td><td class="note">Newer OpenAI transcription model</td><td class="src"><a href="https://ucstrategies.com/news/gpt-4o-complete-guide-benchmarks-review-2026/" target="_blank" rel="noopener">ucstrategies.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Google Cloud STT</td><td>General reported range</td><td class="price">300–600ms</td><td class="note">"Usually" — broader than the 200–250ms internal figure above</td><td class="src"><a href="https://medium.com/@priya.ramky/real-time-speech-to-text-azure-vs-google-live-transcription-dab869c384f4" target="_blank" rel="noopener">medium.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Cloud STT, general</td><td>Real-world deployment</td><td class="price">500–1200ms</td><td class="note">"Despite vendor claims of sub-300ms" — network + endpointing overhead included</td><td class="src"><a href="https://picovoice.ai/blog/speech-to-text-latency/" target="_blank" rel="noopener">picovoice.ai</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>TTS latency (text submitted → first audio)</h2></div>
+    <p class="section-note">TTFB (time-to-first-byte) can be misleading — the first bytes of a stream are often container headers, not playable audio. TTFA (time-to-first-audio) is the metric that matters; noted where the source distinguishes them.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Model</th><th>Latency</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Cartesia</td><td>Sonic Turbo</td><td class="price">~40ms (TTFA)</td><td class="note">Vendor claims this as the TTS market's lowest latency in 2026</td><td class="src"><a href="https://www.eesel.ai/blog/cartesia-sonic-3-pricing" target="_blank" rel="noopener">eesel.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Cartesia</td><td>Sonic-3</td><td class="price">90ms (TTFA)</td><td class="note">Uses State Space Models rather than the transformer architectures most competitors use</td><td class="src"><a href="https://www.eesel.ai/blog/cartesia-sonic-3-pricing" target="_blank" rel="noopener">eesel.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">ElevenLabs</td><td>Flash (eleven_flash_v2_5)</td><td class="price">75ms</td><td class="note">Model inference time only, not end-to-end</td><td class="src"><a href="https://elevenlabs.io/docs/eleven-api/concepts/latency" target="_blank" rel="noopener">elevenlabs.io</a></td></tr>
+          <tr><td class="provider">ElevenLabs</td><td>Flash, end-to-end TTFB</td><td class="price">135ms</td><td class="note">Vendor's own end-to-end figure</td><td class="src"><a href="https://kingy.ai/news/elevenlabs-flash-a-new-era-of-ultra-low-latency-conversational-text-to-speech/" target="_blank" rel="noopener">kingy.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">ElevenLabs</td><td>Flash, independent test</td><td class="price">75–150ms (P50)</td><td class="note">First-chunk latency, "2–4x faster than Turbo"</td><td class="src"><a href="https://smallest.ai/blog/tts-benchmark-2025-smallestai-vs-elevenlabs-report" target="_blank" rel="noopener">smallest.ai</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">OpenAI</td><td>tts-1-hd</td><td class="price">~2,295ms (P50)</td><td class="note">Flagged by the benchmark source as "not viable for real-time voice agents"; no WebSocket API, tested via POST</td><td class="src"><a href="https://gradium.ai/content/tts-latency-benchmark-2026" target="_blank" rel="noopener">gradium.ai</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>LLM latency (time to first token)</h2></div>
+    <p class="section-note">Same model, different hosting provider, very different numbers — shown explicitly rather than averaged away.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Model</th><th>Host / condition</th><th>TTFT</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Claude 4.5 Haiku</td><td>Google Vertex</td><td class="price">0.60s</td><td class="note">Fastest host measured for this model</td><td class="src"><a href="https://artificialanalysis.ai/models/claude-4-5-haiku/providers" target="_blank" rel="noopener">artificialanalysis.ai</a></td></tr>
+          <tr><td class="provider">Claude Haiku 4.5</td><td>Independent test, medium prompt</td><td class="price">0.597s</td><td class="note">"Sub-500ms TTFT" touted for high-throughput classification/routing tasks</td><td class="src"><a href="https://tech-insider.org/claude-opus-vs-sonnet-vs-haiku-2026/" target="_blank" rel="noopener">tech-insider.org</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">GPT-4o mini</td><td>Typical range, normal load</td><td class="price">0.2–0.4s</td><td class="note">—</td><td class="src"><a href="https://www.kunalganglani.com/blog/llm-latency-benchmark-optimization" target="_blank" rel="noopener">kunalganglani.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Claude 4.5 Haiku</td><td>Anthropic (direct)</td><td class="price">0.87s</td><td class="note">—</td><td class="src"><a href="https://artificialanalysis.ai/models/claude-4-5-haiku/providers" target="_blank" rel="noopener">artificialanalysis.ai</a></td></tr>
+          <tr><td class="provider">GPT-4o mini</td><td>Measured average, Feb 2026 run</td><td class="price">0.41s</td><td class="note">—</td><td class="src"><a href="https://llm-benchmarks.com/models/openai/gpt4omini20240718" target="_blank" rel="noopener">llm-benchmarks.com</a> <span class="tag secondary">secondary</span></td></tr>
+          <tr><td class="provider">Claude 3.5 Haiku</td><td>Amazon Bedrock (direct)</td><td class="price">1.93s</td><td class="note">Older model generation — shown for contrast with 4.5</td><td class="src"><a href="https://artificialanalysis.ai/models/claude-3-5-haiku/providers" target="_blank" rel="noopener">artificialanalysis.ai</a></td></tr>
+          <tr><td class="provider">GPT-4o mini</td><td>Direct via OpenAI</td><td class="price">2.20s</td><td class="note">Same model, ~10x slower than the "typical" range above — provider/load dependent</td><td class="src"><a href="https://www.vellum.ai/blog/gpt-4o-mini-v-s-claude-3-haiku-v-s-gpt-3-5-turbo-a-comparison" target="_blank" rel="noopener">vellum.ai</a> <span class="tag secondary">secondary</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Network / telephony latency</h2></div>
+    <p class="section-note">Not a vendor-specific rate — general thresholds and Twilio's own internal flagging rule.</p>
+    <div class="table-card"><div class="table-wrap">
+      <table>
+        <thead><tr><th>Threshold / measurement</th><th>Value</th><th>Note</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr class="cheapest"><td class="provider">Twilio internal RTP flag</td><td class="price">&gt;150ms</td><td class="note">Twilio tags a call "high latency" past this, on its own internal media-edge measurement</td><td class="src"><a href="https://support.twilio.com/hc/en-us/articles/360021808494-Troubleshooting-Latency-and-Delayed-Audio-Issues-on-Twilio-Programmable-Voice-Calls" target="_blank" rel="noopener">support.twilio.com</a></td></tr>
+          <tr><td class="provider">Perceptible lag threshold</td><td class="price">~250–300ms</td><td class="note">Callers start noticing latency past ~250ms; clearly audible lag past 300ms</td><td class="src"><a href="https://www.twilio.com/en-us/blog/understanding-latency" target="_blank" rel="noopener">twilio.com</a></td></tr>
+          <tr><td class="provider">Nearly-unusable threshold</td><td class="price">~600ms+</td><td class="note">Twilio's own guidance on where call experience breaks down</td><td class="src"><a href="https://www.twilio.com/en-us/blog/understanding-latency" target="_blank" rel="noopener">twilio.com</a></td></tr>
+          <tr><td class="provider">Per-hop network overhead</td><td class="price">30–100ms</td><td class="note">"Every single internet hop across different cloud providers" — relevant to co-locating GPU pools near carrier PoPs</td><td class="src"><a href="https://www.twilio.com/en-us/blog/developers/best-practices/guide-core-latency-ai-voice-agents" target="_blank" rel="noopener">twilio.com</a></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+  <footer>
+    Compiled from live web search in July 2026 for the loan-collection voice agent design in this repo
+    (see <code>docs/cost-analysis.md</code> and <code>benchmarks/cost_calculator.py</code>, which use
+    planning assumptions rather than these live vendor rates). No interactive calculator here by design —
+    every number is a fetched, cited data point, not a formula output. Rates change; verify against the
+    linked source before using any figure for a real budget or contract. Covers 11 categories end to end:
+    STT, TTS, LLM/NLU, GPU compute, telephony, VAD, denoiser, echo cancellation, speaker diarization,
+    wake word detection, and voice biometrics.
+  </footer>
+</div>

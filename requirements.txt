@@ -1,0 +1,20 @@
+# Dependencies for the REAL, working reference pipeline (libs/voice_agent_core,
+# tests/, run_demo.py) — pure numpy/scipy, no model downloads required.
+numpy>=1.23
+scipy>=1.9
+pytest>=7.0
+
+# --- Optional production-grade backends (swap-in, not required to run tests/demo) ---
+# webrtcvad>=2.0.10          # alternative VAD backend
+# faster-whisper>=1.0.0      # real streaming ASR backend
+# pyttsx3>=2.90              # offline TTS backend for local dev without a GPU TTS model
+#
+# Production deployment (see docs/architecture.md) would instead run Silero-VAD,
+# DeepFilterNet/RNNoise, a self-hosted streaming Conformer/distil-Whisper, a
+# fine-tuned 1-3B LLM served via vLLM/TensorRT-LLM, and a streaming neural TTS model.
+
+# --- Only needed if you want to exercise the services/ HTTP contracts locally ---
+# (the services/*/main.py files are comment-only architecture placeholders, not
+# runnable code -- these are listed only for reference if you choose to implement them)
+# fastapi>=0.100
+# uvicorn>=0.23

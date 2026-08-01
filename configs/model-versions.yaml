@@ -1,0 +1,17 @@
+# =============================================================================
+# configs/model-versions.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would pin the exact model version deployed per service, for the
+# canary/A-B and rollback workflow in docs/monitoring.md:
+#   - stt-service:   asr model version + quantization tier
+#   - llm-gateway:   fine-tuned LLM checkpoint version
+#   - tts-service:   TTS model version + voice profile
+#   - compliance:    FSM/template version (script changes are versioned
+#                     just as strictly as model changes -- see
+#                     docs/security.md)
+#
+# Every call logged by analytics would carry these version tags, so a
+# quality regression can be traced to the exact model/script version
+# responsible.
+# =============================================================================

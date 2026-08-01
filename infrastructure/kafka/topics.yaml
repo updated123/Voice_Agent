@@ -1,0 +1,19 @@
+# =============================================================================
+# kafka/topics.yaml -- event backbone for analytics & billing (PLACEHOLDER)
+# =============================================================================
+#
+# Would define the topics that decouple call-orchestrator (producer) from
+# analytics and billing (consumers), so neither has to be called
+# synchronously in the per-turn latency path (docs/latency-budget.md):
+#
+#   topic                  | producer            | consumers
+#   ------------------------|---------------------|------------------------
+#   call.events              | call-orchestrator   | analytics
+#   call.usage                | call-orchestrator   | billing
+#   compliance.escalations    | compliance          | analytics, (human queue)
+#
+# Partition counts would be sized off peak event rate (~37,000 dials/sec
+# at peak per docs/scaling.md, several events per call) -- likely
+# hundreds of partitions per topic to keep consumer-group parallelism
+# ahead of produce rate.
+# =============================================================================

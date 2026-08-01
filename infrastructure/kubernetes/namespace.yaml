@@ -1,0 +1,9 @@
+# =============================================================================
+# kubernetes/namespace.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would define one namespace per environment (e.g. voice-agent-prod,
+# voice-agent-staging) and resource quotas scoped to the fleet sizing in
+# docs/scaling.md, so a runaway autoscale in staging can't starve
+# production capacity.
+# =============================================================================

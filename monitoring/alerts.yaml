@@ -1,0 +1,15 @@
+# =============================================================================
+# monitoring/alerts.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would define hard-alert thresholds, per docs/monitoring.md and
+# docs/security.md -- these are treated as pages, not dashboards:
+#   - compliance-script delivery rate < ~100%     (hard alert, not a soft KPI)
+#   - escalation-trigger recall regression        (see docs/monitoring.md)
+#   - P95 turn-taking latency > 1200ms            (docs/latency-budget.md)
+#   - barge-in stop latency > 100ms
+#   - any single carrier trunk > ~30% of a region's traffic
+#     (docs/architecture.md failure-domain table)
+#   - containment rate drop of >=4 points          (docs/cost-analysis.md:
+#     this alone costs more per day than doubling the GPU fleet)
+# =============================================================================

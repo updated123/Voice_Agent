@@ -1,0 +1,651 @@
+<title>Voice Agent Cost &amp; Latency Rack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4; --amber: #b8660f; --amber-soft: #f6e3cc;
+    --grey-seg: #7c8f89; --indigo: #4a5fb8; --violet: #8455b8; --cyan: #1f8fa3; --danger: #c4453a;
+    --shadow: 0 1px 2px rgba(20, 40, 32, 0.06), 0 8px 24px rgba(20, 40, 32, 0.05);
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+      --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+      --accent: #4fd1a5; --accent-soft: #15332a; --amber: #f2a154; --amber-soft: #3a2a15;
+      --grey-seg: #4a5a53; --indigo: #7c8ce8; --violet: #b48ce0; --cyan: #5fc3d8; --danger: #e2665a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+    --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+    --accent: #4fd1a5; --accent-soft: #15332a; --amber: #f2a154; --amber-soft: #3a2a15;
+    --grey-seg: #4a5a53; --indigo: #7c8ce8; --violet: #b48ce0; --cyan: #5fc3d8; --danger: #e2665a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4; --amber: #b8660f; --amber-soft: #f6e3cc;
+    --grey-seg: #7c8f89; --indigo: #4a5fb8; --violet: #8455b8; --cyan: #1f8fa3; --danger: #c4453a;
+    --shadow: 0 1px 2px rgba(20, 40, 32, 0.06), 0 8px 24px rgba(20, 40, 32, 0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  body { padding: 28px 20px 64px; }
+  .wrap { max-width: 1220px; margin: 0 auto; }
+
+  header { margin-bottom: 22px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+  h1 { font-size: clamp(22px, 3vw, 30px); line-height: 1.15; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--text-dim); font-size: 14px; max-width: 66ch; line-height: 1.55; margin: 0; }
+
+  .layout { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  .rack { padding: 6px; }
+  .rack-title { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); padding: 12px 14px 8px; }
+  .module { border-top: 1px solid var(--border); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .module:first-of-type { border-top: none; }
+  .module-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .module-name { font-size: 13.5px; font-weight: 600; }
+  .module-tag { font-family: var(--mono); font-size: 10px; color: var(--text-faint); background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+  select {
+    width: 100%; font-family: var(--sans); font-size: 13px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 10px; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 16px) center, calc(100% - 11px) center;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: inherit;
+  }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .module-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.4; min-height: 15px; }
+  .module-note b { color: var(--text); font-weight: 600; }
+  .module-note .na { color: var(--amber); }
+
+  .sub-group-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-faint); padding: 12px 14px 2px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .sliders { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+  .slider-row { display: flex; flex-direction: column; gap: 5px; }
+  .slider-row label { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); }
+  .slider-row output { font-family: var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--border); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--panel); margin-top: -6px; box-shadow: 0 0 0 1px var(--accent);
+  }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border); }
+  input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); }
+
+  .readout { display: flex; flex-direction: column; gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 640px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .tile-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+  .tile-value { font-family: var(--mono); font-size: clamp(19px, 2.4vw, 25px); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .tile-sub { font-size: 11.5px; color: var(--text-dim); }
+  .tile.warn .tile-value { color: var(--amber); }
+  .tile.ref { border: 1px dashed var(--border); }
+
+  .section { padding: 18px 20px 20px; }
+  .section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.01em; margin: 0 0 3px; }
+  .section-desc { font-size: 12px; color: var(--text-dim); margin: 0 0 14px; line-height: 1.5; }
+
+  .stackbar { display: flex; width: 100%; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .seg { display: flex; align-items: center; justify-content: center; min-width: 2px; position: relative; }
+  .seg span { font-family: var(--mono); font-size: 10.5px; color: #fff; white-space: nowrap; text-shadow: 0 1px 1px rgba(0,0,0,0.25); padding: 0 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-dim); }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 600; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.na { color: var(--text-faint); font-style: italic; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; padding: 2px 8px; border-radius: 100px; background: var(--amber-soft); color: var(--amber); font-weight: 600; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.03em; padding: 1px 6px; border-radius: 100px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; }
+  .tag.oss { background: var(--accent-soft); color: var(--accent); }
+  .tag.enterprise { background: var(--amber-soft); color: var(--amber); }
+
+  .ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .ref-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--panel-2); }
+  .ref-card h3 { font-size: 12.5px; margin: 0 0 8px; font-weight: 700; }
+  .ref-card ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .ref-card li { font-size: 11.5px; line-height: 1.4; display: flex; justify-content: space-between; gap: 8px; }
+  .ref-card li b { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .ref-card li span.name { color: var(--text-dim); }
+
+  footer { margin-top: 24px; font-size: 11.5px; color: var(--text-faint); line-height: 1.65; max-width: 92ch; }
+  footer code { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+  .warning {
+    background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    border-radius: 10px; padding: 12px 16px; margin: 0 0 18px; font-size: 12.5px; line-height: 1.6; color: var(--text);
+  }
+  .warning b { color: var(--amber); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Signal path planning tool — sourced data only</p>
+    <h1>Voice agent cost &amp; latency rack</h1>
+    <p class="sub">
+      Every option below is a real vendor rate or a real license (see
+      <code style="font-family:var(--mono); font-size:12.5px;">real-pricing-reference.html</code> for every
+      source link). Nothing is derived from an invented "quality" adjustment — where converting a real
+      per-token/per-character rate into a per-call cost requires an assumption (tokens/turn, chars/turn,
+      turns/call), that assumption is an explicit slider you control, never hidden in the math.
+    </p>
+  </header>
+
+  <div class="warning">
+    <b>What changed from the first version of this tool:</b> the earlier build had per-module "escalation
+    rate delta" values (e.g. "better denoiser → −3% escalation") — those were reasoned estimates, not
+    sourced facts, so they've been removed. Escalation rate is now a single plain slider you set directly.
+    Latency is shown only where a real benchmark was found; unbenchmarked combinations read
+    <b class="na" style="color:var(--amber)">n/a</b> rather than a guessed number.
+  </div>
+
+  <div class="layout">
+    <!-- RACK -->
+    <div class="panel rack">
+      <div class="rack-title">Pipeline modules — cost &amp; latency drivers</div>
+
+      <div class="module">
+        <div class="module-label"><span class="module-name">STT / ASR</span><span class="module-tag">GPU pool</span></div>
+        <select id="sel-stt"></select>
+        <div class="module-note" id="note-stt"></div>
+      </div>
+
+      <div class="module">
+        <div class="module-label"><span class="module-name">NLU / LLM</span><span class="module-tag">GPU pool</span></div>
+        <select id="sel-llm"></select>
+        <div class="module-note" id="note-llm"></div>
+      </div>
+
+      <div class="module">
+        <div class="module-label"><span class="module-name">TTS</span><span class="module-tag">GPU pool</span></div>
+        <select id="sel-tts"></select>
+        <div class="module-note" id="note-tts"></div>
+      </div>
+
+      <div class="module">
+        <div class="module-label"><span class="module-name">Telephony trunking</span><span class="module-tag">carrier</span></div>
+        <select id="sel-telephony"></select>
+        <div class="module-note" id="note-telephony"></div>
+      </div>
+
+      <div class="module">
+        <div class="module-label"><span class="module-name">GPU compute tier</span><span class="module-tag">reference only</span></div>
+        <select id="sel-gpu"></select>
+        <div class="module-note" id="note-gpu"></div>
+      </div>
+
+      <div class="sub-group-title">Traffic</div>
+      <div class="sliders">
+        <div class="slider-row"><label>Calls / day <output id="out-calls"></output></label><input type="range" id="sl-calls" min="0" max="100" step="1" /></div>
+        <div class="slider-row"><label>Answer rate <output id="out-answer"></output></label><input type="range" id="sl-answer" min="10" max="100" step="1" /></div>
+        <div class="slider-row"><label>Avg call duration <output id="out-duration"></output></label><input type="range" id="sl-duration" min="20" max="150" step="5" /></div>
+      </div>
+
+      <div class="sub-group-title">Dialogue shape (explicit assumptions)</div>
+      <div class="sliders">
+        <div class="slider-row"><label>Avg turns / call <output id="out-turns"></output></label><input type="range" id="sl-turns" min="2" max="8" step="1" /></div>
+        <div class="slider-row"><label>Avg input tokens / turn <output id="out-intok"></output></label><input type="range" id="sl-intok" min="10" max="200" step="5" /></div>
+        <div class="slider-row"><label>Avg output tokens / turn <output id="out-outtok"></output></label><input type="range" id="sl-outtok" min="5" max="120" step="5" /></div>
+        <div class="slider-row"><label>Avg chars / turn (TTS) <output id="out-chars"></output></label><input type="range" id="sl-chars" min="30" max="300" step="10" /></div>
+      </div>
+
+      <div class="sub-group-title">Pipeline tuning (not vendor-specific)</div>
+      <div class="sliders">
+        <div class="slider-row"><label>VAD hangover window <output id="out-hangover"></output></label><input type="range" id="sl-hangover" min="100" max="300" step="10" /></div>
+        <div class="slider-row"><label>Denoiser processing time <output id="out-denoiseproc"></output></label><input type="range" id="sl-denoiseproc" min="0" max="30" step="1" /></div>
+        <div class="slider-row"><label>Network overhead / hop <output id="out-network"></output></label><input type="range" id="sl-network" min="20" max="120" step="5" /></div>
+      </div>
+
+      <div class="sub-group-title">Escalation economics</div>
+      <div class="sliders">
+        <div class="slider-row"><label>Escalation rate <output id="out-escalation"></output></label><input type="range" id="sl-escalation" min="3" max="35" step="1" /></div>
+        <div class="slider-row"><label>Human handle time <output id="out-handlemin"></output></label><input type="range" id="sl-handlemin" min="1" max="10" step="0.5" /></div>
+        <div class="slider-row"><label>Human agent cost <output id="out-human"></output></label><input type="range" id="sl-human" min="3" max="30" step="1" /></div>
+      </div>
+    </div>
+
+    <!-- READOUT -->
+    <div class="readout">
+      <div class="tiles">
+        <div class="panel tile"><div class="tile-label">Cost / call</div><div class="tile-value" id="v-cost-call">–</div><div class="tile-sub">blended, all dials</div></div>
+        <div class="panel tile"><div class="tile-label">Cost / day</div><div class="tile-value" id="v-cost-day">–</div><div class="tile-sub" id="v-cost-day-sub">–</div></div>
+        <div class="panel tile"><div class="tile-label">Cost / month</div><div class="tile-value" id="v-cost-month">–</div><div class="tile-sub">30 &times; daily</div></div>
+        <div class="panel tile" id="tile-latency"><div class="tile-label">Turn latency (sourced legs only)</div><div class="tile-value" id="v-latency">–</div><div class="tile-sub" id="v-latency-sub">end-of-speech &rarr; bot audio</div></div>
+      </div>
+
+      <div class="panel section">
+        <p class="section-title">Latency budget by stage</p>
+        <p class="section-desc">Only stages with a real sourced (or explicitly-tuned) figure are summed. A vendor with no benchmark found contributes <b>0</b> to this total and is flagged <span class="na" style="color:var(--amber)">n/a</span> below — it is not assumed to be fast.</p>
+        <div class="stackbar" id="latency-bar"></div>
+        <div class="legend" id="latency-legend"></div>
+      </div>
+
+      <div class="panel section">
+        <p class="section-title">Cost breakdown <span id="dominant-badge"></span></p>
+        <p class="section-desc">Compute (STT+LLM+TTS), telephony, and human-escalation labor, as a share of total daily spend.</p>
+        <div class="stackbar" id="cost-bar"></div>
+        <div class="legend" id="cost-legend"></div>
+      </div>
+
+      <div class="panel section">
+        <p class="section-title">Per-component detail</p>
+        <p class="section-desc">Self-hosted options show $0 API cost — their real cost is GPU infrastructure, referenced via the GPU compute tier tile, not multiplied in here (that would require an unbenchmarked throughput-per-GPU assumption).</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Module</th><th>Selection</th><th class="num">$ / call</th><th class="num">Latency</th></tr></thead>
+            <tbody id="detail-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel section">
+        <p class="section-title">GPU compute reference <span class="tag">reference only</span></p>
+        <p class="section-desc">Shown for context when comparing self-hosted options above — not multiplied into the totals, since per-call GPU-seconds depends on batching/throughput figures that would need real load-testing, not a search result.</p>
+        <div class="tiles" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="panel tile ref"><div class="tile-label">Selected GPU tier</div><div class="tile-value" id="v-gpu-rate">–</div><div class="tile-sub" id="v-gpu-name">–</div></div>
+          <div class="panel tile ref"><div class="tile-label">At 1B calls/day scale</div><div class="tile-value" id="v-gpu-fleet">–</div><div class="tile-sub">~39K GPUs (docs/scaling.md conservative estimate) &times; selected rate</div></div>
+        </div>
+      </div>
+
+      <div class="panel section">
+        <p class="section-title">Additional components (reference — not part of the cost/latency math)</p>
+        <p class="section-desc">VAD, denoiser, echo cancellation, speaker diarization, wake word, and voice biometrics: mostly free/open-source at the algorithm level, or enterprise tools that don't publish per-unit pricing at all. Shown here as reference so every category from the audit is represented in this file, not forced into per-call math that wouldn't be honest.</p>
+        <div class="ref-grid" id="ref-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Cost/latency figures sourced from <code>real-pricing-reference.html</code> (compiled July 2026 via live
+    web search — see that file for every citation link). Assumptions this tool exposes as sliders (turns/call,
+    tokens/turn, chars/turn, VAD hangover, denoiser processing time, network overhead) are explicit and
+    adjustable, not baked into vendor data. Rates change — verify against the source before using any figure
+    for a real budget.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // STT — $/min real vendor rates; latencyMs is a real sourced figure or
+  // null (shown as n/a, contributes 0 to the latency sum).
+  // ---------------------------------------------------------------------
+  const STT = [
+    { id: "assemblyai-u2", name: "AssemblyAI Universal-2 (async)", perMin: 0.0025, latencyMs: null, kind: "api", note: "Cheapest hosted STT found. Latency not benchmarked in search." },
+    { id: "google-batch", name: "Google Cloud STT, Dynamic Batch", perMin: 0.003, latencyMs: null, kind: "api", note: "24hr turnaround batch tier — not for live calls; shown for cost reference." },
+    { id: "azure-batch", name: "Azure Speech, batch", perMin: 0.003, latencyMs: null, kind: "api", note: "Batch tier — not for live calls." },
+    { id: "openai-mini-transcribe", name: "OpenAI gpt-4o-mini-transcribe", perMin: 0.003, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "assemblyai-u35", name: "AssemblyAI Universal-3.5 Pro (async)", perMin: 0.0035, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "deepgram-batch", name: "Deepgram Nova-3 (pre-recorded)", perMin: 0.0043, latencyMs: null, kind: "api", note: "Batch tier." },
+    { id: "deepgram-stream", name: "Deepgram Nova-3 (streaming)", perMin: 0.0077, latencyMs: 300, kind: "api", note: "Vendor claim: \"average end-to-end &lt;300ms.\"" },
+    { id: "assemblyai-stream", name: "AssemblyAI streaming (Universal-3.5 Realtime)", perMin: 0.0075, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "openai-whisper", name: "OpenAI whisper-1 / gpt-4o-transcribe", perMin: 0.006, latencyMs: 320, kind: "api", note: "gpt-4o-transcribe sourced at ~320ms." },
+    { id: "azure-fast", name: "Azure Speech, fast transcription", perMin: 0.006, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "speechmatics-batch", name: "Speechmatics, batch standard", perMin: 0.0133, latencyMs: null, kind: "api", note: "$0.80/hr. Latency not benchmarked in search." },
+    { id: "google-realtime", name: "Google Cloud STT, real-time standard", perMin: 0.016, latencyMs: 300, kind: "api", note: "Reported anywhere 200ms (internal) to 1200ms (real-world w/ network+endpointing) — 300ms used as a middle estimate; see real-pricing-reference.html for the full range." },
+    { id: "azure-realtime", name: "Azure Speech, real-time standard", perMin: 0.0167, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "speechmatics-rt", name: "Speechmatics, real-time standard", perMin: 0.0173, latencyMs: null, kind: "api", note: "$1.04/hr. Latency not benchmarked in search." },
+    { id: "aws-transcribe", name: "AWS Transcribe, standard (tier 1)", perMin: 0.024, latencyMs: null, kind: "api", note: "Drops to $0.0078/min at 5M+ min/mo. Latency not benchmarked in search." },
+    { id: "self-fasterwhisper", name: "Self-hosted: faster-whisper (MIT)", perMin: 0, latencyMs: null, kind: "self-hosted", note: "Free — real cost is GPU time, see GPU reference tile below." },
+    { id: "self-vosk", name: "Self-hosted: Vosk (wraps Kaldi)", perMin: 0, latencyMs: null, kind: "self-hosted", note: "Free, lightweight, offline-capable — GPU/CPU cost not modeled here." },
+    { id: "self-parakeet", name: "Self-hosted: NVIDIA Parakeet / Riva", perMin: 0, latencyMs: null, kind: "self-hosted", note: "Weights CC-BY-4.0, free — GPU cost not modeled here." },
+  ];
+
+  // ---------------------------------------------------------------------
+  // LLM — real $/1M input & output tokens; latencyMs from a real sourced
+  // TTFT figure (host-dependent, huge variance noted). turns/tokens-per-
+  // turn are user sliders, not baked in.
+  // ---------------------------------------------------------------------
+  const LLM = [
+    { id: "groq-70b", name: "Groq — Llama 3.3 70B Versatile", inPerM: 0.59, outPerM: 0.79, latencyMs: null, note: "Groq also has Llama 3.1 8B from $0.05/1M input (output rate not confirmed in search). TTFT not benchmarked for either in search — Groq's LPU hardware is marketed for high throughput." },
+    { id: "openai-4omini", name: "OpenAI GPT-4o mini", inPerM: 0.15, outPerM: 0.60, latencyMs: 410, note: "Measured avg 410ms (Feb 2026 run) — but same model measured 200-400ms \"typical,\" and up to 2200ms direct via OpenAI depending on load/host. Wide variance is real, not a data error." },
+    { id: "gemini-flash", name: "Google Gemini 2.5 Flash", inPerM: 0.30, outPerM: 2.50, latencyMs: null, note: "Input as low as $0.15/1M via Google AI Studio. TTFT not benchmarked in search." },
+    { id: "claude-haiku45", name: "Anthropic Claude Haiku 4.5", inPerM: 1, outPerM: 5, latencyMs: 870, note: "870ms via Anthropic direct; 600ms via Google Vertex (fastest host found). Batch processing is 50% cheaper; prompt caching cuts cached input 90%." },
+    { id: "claude-sonnet5-intro", name: "Anthropic Claude Sonnet 5 (intro, through Aug 31 2026)", inPerM: 2, outPerM: 10, latencyMs: null, note: "Standard pricing ($3/$15) begins Sep 1 2026." },
+    { id: "claude-opus48", name: "Anthropic Claude Opus 4.8", inPerM: 5, outPerM: 25, latencyMs: null, note: "Latency not benchmarked in search." },
+    { id: "claude-fable5", name: "Anthropic Claude Fable 5", inPerM: 10, outPerM: 50, latencyMs: null, note: "Latency not benchmarked in search." },
+  ];
+
+  // ---------------------------------------------------------------------
+  // TTS — real $/1M characters; latencyMs from a real sourced TTFA/TTFB
+  // figure where found. chars/turn is a user slider.
+  // ---------------------------------------------------------------------
+  const TTS = [
+    { id: "google-tts", name: "Google Cloud TTS, Standard/WaveNet", perMChars: 4, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "polly-standard", name: "Amazon Polly, Standard", perMChars: 4, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "cartesia-sonic", name: "Cartesia Sonic (Turbo/Sonic-3)", perMChars: 15, latencyMs: 65, kind: "api", note: "Effective rate $5-37/1M depending on plan tier. Latency: ~40ms (Sonic Turbo) to 90ms (Sonic-3) — 65ms used as midpoint; vendor-adjacent source." },
+    { id: "elevenlabs-flash", name: "ElevenLabs Flash / Turbo", perMChars: 50, latencyMs: 110, kind: "api", note: "Independent P50 first-chunk test: 75-150ms; vendor's own model-inference-only figure is 75ms." },
+    { id: "openai-tts1", name: "OpenAI tts-1 / gpt-4o-mini-tts", perMChars: 15, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "polly-neural", name: "Amazon Polly, Neural", perMChars: 16, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "azure-tts", name: "Azure AI Speech, Neural TTS", perMChars: 16, latencyMs: null, kind: "api", note: "Neural HD tier runs $22-30/1M. Latency not benchmarked in search." },
+    { id: "openai-tts1hd", name: "OpenAI tts-1-hd", perMChars: 30, latencyMs: 2295, kind: "api", note: "Sourced P50 ~2295ms — flagged by its own benchmark source as not viable for real-time voice agents." },
+    { id: "polly-generative", name: "Amazon Polly, Generative", perMChars: 30, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "elevenlabs-multi", name: "ElevenLabs Multilingual v2/v3", perMChars: 100, latencyMs: null, kind: "api", note: "Most expressive ElevenLabs tier; latency not separately benchmarked (see Flash above)." },
+    { id: "polly-longform", name: "Amazon Polly, Long-Form", perMChars: 100, latencyMs: null, kind: "api", note: "Latency not benchmarked in search." },
+    { id: "playht", name: "PlayHT Creator plan", perMChars: 145, latencyMs: null, kind: "api", note: "Word-based subscription converted at ~5-6 chars/word — approximate, not a direct per-char rate." },
+    { id: "self-piper", name: "Self-hosted: Piper (MIT)", perMChars: 0, latencyMs: null, kind: "self-hosted", note: "Free, fully commercial-safe license. GPU/CPU cost not modeled here." },
+    { id: "self-xtts", name: "Self-hosted: Coqui XTTS v2", perMChars: 0, latencyMs: null, kind: "self-hosted", note: "Code is MPL 2.0 (commercial-safe) but the WEIGHTS are CPML — non-commercial only. Check before shipping." },
+    { id: "self-fishspeech", name: "Self-hosted: Fish Speech", perMChars: 0, latencyMs: null, kind: "self-hosted", note: "Free for non-commercial use only — commercial use requires a separate paid license from Fish Audio." },
+    { id: "self-styletts2", name: "Self-hosted: StyleTTS2", perMChars: 0, latencyMs: null, kind: "self-hosted", note: "Core is MIT, but the standard inference path depends on a GPL component — check your build." },
+  ];
+
+  // ---------------------------------------------------------------------
+  // Telephony — real $/min. Network latency is NOT vendor-specific in
+  // sourced data (only Twilio's internal 150ms flagging threshold exists),
+  // so network latency is a separate tuning slider, not tied to vendor.
+  // ---------------------------------------------------------------------
+  const TELEPHONY = [
+    { id: "telnyx", name: "Telnyx, Voice API base", perMin: 0.002, note: "Effective all-in cost ~$0.007/min once SIP trunking fees are added." },
+    { id: "plivo", name: "Plivo, US outbound (from)", perMin: 0.0085, note: "Varies enormously by destination prefix — one specific US prefix is listed at $0.179/min." },
+    { id: "india-direct", name: "India market, direct SIP (benchmark)", perMin: 0.0108, note: "₹0.60-1.20/min market benchmark (not one vendor's rate), converted at ~₹83/$." },
+    { id: "india-aggregator", name: "India market, via aggregator (benchmark)", perMin: 0.0157, note: "₹0.80-1.80/min market benchmark (not one vendor's rate), converted at ~₹83/$." },
+    { id: "twilio-local", name: "Twilio, US outbound local/mobile", perMin: 0.013, note: "Official Twilio rate." },
+    { id: "twilio-tollfree", name: "Twilio, US outbound toll-free", perMin: 0.022, note: "+$0.0025/min if recording." },
+    { id: "exotel", name: "Exotel (India) — credit-based, not a per-min rate", perMin: null, note: "No public per-minute rate found — billed via prepaid credit bundles; official docs point to sales." },
+  ];
+
+  // ---------------------------------------------------------------------
+  // GPU compute — reference tile only (see note in the UI on why this
+  // isn't multiplied into self-hosted STT/LLM/TTS costs above).
+  // ---------------------------------------------------------------------
+  const GPU = [
+    { id: "runpod-a100-comm", name: "RunPod A100 80GB, Community Cloud", perHr: 1.39, note: "Cheapest found. Secure Cloud runs close to double." },
+    { id: "runpod-a100-sxm", name: "RunPod A100 SXM", perHr: 1.49, note: "—" },
+    { id: "lambda-a100-40", name: "Lambda Labs A100 40GB, on-demand", perHr: 1.99, note: "No spot tier at Lambda." },
+    { id: "aws-a100", name: "AWS EC2 A100 (P4d/P4de, on-demand)", perHr: 2.75, note: "8-GPU pack at $22/hr total, after a 33% cut in June 2026." },
+    { id: "lambda-a100-80", name: "Lambda Labs A100 80GB, on-demand", perHr: 2.79, note: "—" },
+    { id: "runpod-h100-pcie", name: "RunPod H100 PCIe, Community Cloud", perHr: 2.89, note: "—" },
+    { id: "runpod-h100-sxm", name: "RunPod H100 SXM 80GB, Secure Cloud", perHr: 2.99, note: "—" },
+    { id: "lambda-h100-pcie", name: "Lambda Labs H100 PCIe 80GB", perHr: 3.29, note: "—" },
+    { id: "lambda-h100-sxm", name: "Lambda Labs H100 SXM 80GB", perHr: 4.29, note: "8-GPU configuration only." },
+  ];
+
+  // ---------------------------------------------------------------------
+  // Additional components — reference grid, not part of cost/latency math.
+  // ---------------------------------------------------------------------
+  const ADDITIONAL = [
+    { title: "VAD", items: [
+      { name: "Silero VAD", cost: "Free (MIT)" },
+      { name: "WebRTC VAD", cost: "Free (BSD)" },
+      { name: "pyannote.audio VAD", cost: "Free (MIT)" },
+      { name: "NVIDIA NeMo VAD", cost: "Free (compute only)" },
+      { name: "Picovoice Cobra", cost: "$899/mo @ 1K users" },
+    ]},
+    { title: "Denoiser", items: [
+      { name: "RNNoise", cost: "Free (BSD-3)" },
+      { name: "DeepFilterNet", cost: "Free (MIT/Apache-2.0)" },
+      { name: "SpeexDSP", cost: "Free (BSD)" },
+      { name: "WebRTC NS", cost: "Free (BSD)" },
+      { name: "Krisp SDK", cost: "Not published" },
+      { name: "NVIDIA Maxine", cost: "Not published" },
+    ]},
+    { title: "Echo cancellation", items: [
+      { name: "WebRTC AEC", cost: "Free (BSD)" },
+      { name: "Speex AEC", cost: "Free (BSD)" },
+      { name: "NVIDIA Maxine AEC", cost: "Not published" },
+      { name: "Krisp SDK", cost: "Not published" },
+    ]},
+    { title: "Speaker diarization", items: [
+      { name: "pyannote.audio", cost: "Free (MIT)" },
+      { name: "NVIDIA NeMo", cost: "Free (compute only)" },
+      { name: "AssemblyAI add-on", cost: "+$0.02/hr" },
+      { name: "pyannoteAI (hosted)", cost: "€19-99/mo" },
+    ]},
+    { title: "Wake word", items: [
+      { name: "openWakeWord", cost: "Free" },
+      { name: "Mycroft Precise", cost: "Free" },
+      { name: "Picovoice Porcupine", cost: "$6,000/yr (Starter)" },
+    ]},
+    { title: "Voice biometrics", items: [
+      { name: "Azure Speaker Recognition", cost: "10K free tx/mo, then n/a" },
+      { name: "Pindrop", cost: "Not published" },
+      { name: "Nuance Gatekeeper", cost: "Not published" },
+      { name: "Veridas", cost: "Not published" },
+      { name: "ID R&D", cost: "Not published" },
+    ]},
+  ];
+
+  function populate(selectEl, options) {
+    selectEl.innerHTML = options.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
+  }
+  populate(document.getElementById("sel-stt"), STT);
+  populate(document.getElementById("sel-llm"), LLM);
+  populate(document.getElementById("sel-tts"), TTS);
+  populate(document.getElementById("sel-telephony"), TELEPHONY);
+  populate(document.getElementById("sel-gpu"), GPU);
+
+  document.getElementById("ref-grid").innerHTML = ADDITIONAL.map(group => `
+    <div class="ref-card">
+      <h3>${group.title}</h3>
+      <ul>${group.items.map(i => `<li><span class="name">${i.name}</span><b>${i.cost}</b></li>`).join("")}</ul>
+    </div>
+  `).join("");
+
+  const els = {
+    stt: document.getElementById("sel-stt"),
+    llm: document.getElementById("sel-llm"),
+    tts: document.getElementById("sel-tts"),
+    telephony: document.getElementById("sel-telephony"),
+    gpu: document.getElementById("sel-gpu"),
+    slCalls: document.getElementById("sl-calls"),
+    slAnswer: document.getElementById("sl-answer"),
+    slDuration: document.getElementById("sl-duration"),
+    slTurns: document.getElementById("sl-turns"),
+    slIntok: document.getElementById("sl-intok"),
+    slOuttok: document.getElementById("sl-outtok"),
+    slChars: document.getElementById("sl-chars"),
+    slHangover: document.getElementById("sl-hangover"),
+    slDenoiseproc: document.getElementById("sl-denoiseproc"),
+    slNetwork: document.getElementById("sl-network"),
+    slEscalation: document.getElementById("sl-escalation"),
+    slHandlemin: document.getElementById("sl-handlemin"),
+    slHuman: document.getElementById("sl-human"),
+  };
+
+  els.slCalls.value = 100;       // -> 1e9, matches docs/scaling.md
+  els.slAnswer.value = 30;
+  els.slDuration.value = 60;
+  els.slTurns.value = 4;
+  els.slIntok.value = 60;
+  els.slOuttok.value = 30;
+  els.slChars.value = 120;
+  els.slHangover.value = 200;
+  els.slDenoiseproc.value = 15;
+  els.slNetwork.value = 40;
+  els.slEscalation.value = 12;
+  els.slHandlemin.value = 4;
+  els.slHuman.value = 8;
+
+  function find(list, id) { return list.find(o => o.id === id) || list[0]; }
+  function callsFromSlider(v) { return Math.pow(10, 6 + (v / 100) * 3); }
+
+  function fmtMoney(n) {
+    if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+    if (n >= 1e3) return "$" + (n / 1e3).toFixed(2) + "K";
+    if (n >= 1) return "$" + n.toFixed(2);
+    return "$" + n.toFixed(6);
+  }
+  function fmtCents(n) { return "$" + n.toFixed(6); }
+  function fmtCalls(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + "B/day";
+    if (n >= 1e6) return (n / 1e6).toFixed(0) + "M/day";
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + "K/day";
+    return n.toFixed(0) + "/day";
+  }
+
+  const LAT_COLORS = { vad: "var(--accent)", denoiser: "var(--cyan)", stt: "var(--indigo)", llm: "var(--violet)", tts: "var(--amber)", net: "var(--grey-seg)" };
+  const COST_COLORS = { compute: "var(--accent)", telephony: "var(--grey-seg)", human: "var(--amber)" };
+
+  function buildBar(container, segments) {
+    const total = segments.reduce((s, x) => s + Math.max(x.value, 0), 0) || 1;
+    container.innerHTML = segments.map(s => {
+      const pct = (Math.max(s.value, 0) / total) * 100;
+      return `<div class="seg" style="width:${pct}%; background:${s.color};" title="${s.label}: ${s.display}">${pct > 8 ? `<span>${s.display}</span>` : ""}</div>`;
+    }).join("");
+  }
+  function buildLegend(container, segments) {
+    container.innerHTML = segments.map(s =>
+      `<div class="legend-item"><span class="swatch" style="background:${s.color}"></span>${s.label}: <b style="color:var(--text)">${s.display}</b></div>`
+    ).join("");
+  }
+
+  function recompute() {
+    const stt = find(STT, els.stt.value);
+    const llm = find(LLM, els.llm.value);
+    const tts = find(TTS, els.tts.value);
+    const telephony = find(TELEPHONY, els.telephony.value);
+    const gpu = find(GPU, els.gpu.value);
+
+    const callsPerDay = callsFromSlider(Number(els.slCalls.value));
+    const answerRate = Number(els.slAnswer.value) / 100;
+    const durationSec = Number(els.slDuration.value);
+    const durationMin = durationSec / 60;
+    const turnsPerCall = Number(els.slTurns.value);
+    const inTokPerTurn = Number(els.slIntok.value);
+    const outTokPerTurn = Number(els.slOuttok.value);
+    const charsPerTurn = Number(els.slChars.value);
+    const hangoverMs = Number(els.slHangover.value);
+    const denoiseMs = Number(els.slDenoiseproc.value);
+    const networkMs = Number(els.slNetwork.value);
+    const escalationRate = Number(els.slEscalation.value) / 100;
+    const handleMin = Number(els.slHandlemin.value);
+    const humanPerHr = Number(els.slHuman.value);
+
+    document.getElementById("out-calls").textContent = fmtCalls(callsPerDay);
+    document.getElementById("out-answer").textContent = Math.round(answerRate * 100) + "%";
+    document.getElementById("out-duration").textContent = durationSec + "s";
+    document.getElementById("out-turns").textContent = turnsPerCall;
+    document.getElementById("out-intok").textContent = inTokPerTurn;
+    document.getElementById("out-outtok").textContent = outTokPerTurn;
+    document.getElementById("out-chars").textContent = charsPerTurn;
+    document.getElementById("out-hangover").textContent = hangoverMs + "ms";
+    document.getElementById("out-denoiseproc").textContent = denoiseMs + "ms";
+    document.getElementById("out-network").textContent = networkMs + "ms";
+    document.getElementById("out-escalation").textContent = Math.round(escalationRate * 100) + "%";
+    document.getElementById("out-handlemin").textContent = handleMin + " min";
+    document.getElementById("out-human").textContent = "$" + humanPerHr + "/hr";
+
+    // ---- cost ----
+    const sttCostPerCall = stt.kind === "self-hosted" ? 0 : stt.perMin * durationMin;
+    const llmCostPerCall = ((llm.inPerM * inTokPerTurn / 1e6) + (llm.outPerM * outTokPerTurn / 1e6)) * turnsPerCall;
+    const ttsCostPerCall = tts.kind === "self-hosted" ? 0 : (tts.perMChars / 1e6) * charsPerTurn * turnsPerCall;
+    const computeCostPerConnectedCall = sttCostPerCall + llmCostPerCall + ttsCostPerCall;
+
+    const telephonyCostPerDial = telephony.perMin == null ? 0 : telephony.perMin * durationMin;
+    const telephonyNotComputable = telephony.perMin == null;
+
+    const humanCostPerConnectedCall = escalationRate * (handleMin / 60) * humanPerHr;
+
+    const costPerDay =
+      callsPerDay * telephonyCostPerDial +
+      callsPerDay * answerRate * (computeCostPerConnectedCall + humanCostPerConnectedCall);
+
+    const costPerCall = costPerDay / callsPerDay;
+    const costPerMonth = costPerDay * 30;
+
+    document.getElementById("v-cost-call").textContent = fmtCents(costPerCall);
+    document.getElementById("v-cost-day").textContent = fmtMoney(costPerDay);
+    document.getElementById("v-cost-day-sub").textContent = fmtCalls(callsPerDay) + " · " + Math.round(answerRate * 100) + "% answer" + (telephonyNotComputable ? " · telephony n/a" : "");
+    document.getElementById("v-cost-month").textContent = fmtMoney(costPerMonth);
+
+    // ---- latency (sourced legs only) ----
+    const latStt = stt.latencyMs;
+    const latLlm = llm.latencyMs;
+    const latTts = tts.latencyMs;
+    const knownLegs = [hangoverMs, denoiseMs, latStt, latLlm, latTts, networkMs].filter(v => v != null);
+    const totalLatency = knownLegs.reduce((a, b) => a + b, 0);
+    const unknownCount = [latStt, latLlm, latTts].filter(v => v == null).length;
+
+    document.getElementById("v-latency").textContent = totalLatency + "ms";
+    document.getElementById("v-latency-sub").textContent = unknownCount > 0
+      ? `${unknownCount} of 3 vendor legs unbenchmarked — true latency is higher`
+      : "all pipeline legs sourced or tuned";
+    document.getElementById("tile-latency").classList.toggle("warn", totalLatency > 900 || unknownCount > 0);
+
+    buildBar(document.getElementById("latency-bar"), [
+      { label: "VAD hangover (tuned)", value: hangoverMs, color: LAT_COLORS.vad, display: hangoverMs + "ms" },
+      { label: "Denoiser (tuned)", value: denoiseMs, color: LAT_COLORS.denoiser, display: denoiseMs + "ms" },
+      { label: "STT", value: latStt || 0, color: LAT_COLORS.stt, display: latStt != null ? latStt + "ms" : "n/a" },
+      { label: "LLM", value: latLlm || 0, color: LAT_COLORS.llm, display: latLlm != null ? latLlm + "ms" : "n/a" },
+      { label: "TTS", value: latTts || 0, color: LAT_COLORS.tts, display: latTts != null ? latTts + "ms" : "n/a" },
+      { label: "Network (tuned)", value: networkMs, color: LAT_COLORS.net, display: networkMs + "ms" },
+    ]);
+    buildLegend(document.getElementById("latency-legend"), [
+      { label: "VAD hangover", color: LAT_COLORS.vad, display: hangoverMs + "ms (tuned)" },
+      { label: "Denoiser", color: LAT_COLORS.denoiser, display: denoiseMs + "ms (tuned)" },
+      { label: "STT", color: LAT_COLORS.stt, display: latStt != null ? latStt + "ms" : "n/a" },
+      { label: "LLM", color: LAT_COLORS.llm, display: latLlm != null ? latLlm + "ms" : "n/a" },
+      { label: "TTS", color: LAT_COLORS.tts, display: latTts != null ? latTts + "ms" : "n/a" },
+      { label: "Network", color: LAT_COLORS.net, display: networkMs + "ms (tuned)" },
+    ]);
+
+    // ---- cost breakdown ----
+    const computeDay = callsPerDay * answerRate * computeCostPerConnectedCall;
+    const telephonyDay = callsPerDay * telephonyCostPerDial;
+    const humanDay = callsPerDay * answerRate * humanCostPerConnectedCall;
+
+    buildBar(document.getElementById("cost-bar"), [
+      { label: "Compute", value: computeDay, color: COST_COLORS.compute, display: fmtMoney(computeDay) },
+      { label: "Telephony", value: telephonyDay, color: COST_COLORS.telephony, display: fmtMoney(telephonyDay) },
+      { label: "Human escalation", value: humanDay, color: COST_COLORS.human, display: fmtMoney(humanDay) },
+    ]);
+    buildLegend(document.getElementById("cost-legend"), [
+      { label: "Compute", color: COST_COLORS.compute, display: fmtMoney(computeDay) + " / day" },
+      { label: "Telephony", color: COST_COLORS.telephony, display: fmtMoney(telephonyDay) + " / day" + (telephonyNotComputable ? " (n/a — Exotel is credit-based)" : "") },
+      { label: "Human escalation", color: COST_COLORS.human, display: fmtMoney(humanDay) + " / day (" + Math.round(escalationRate * 100) + "% of connected calls)" },
+    ]);
+
+    const badge = document.getElementById("dominant-badge");
+    badge.innerHTML = humanDay > computeDay + telephonyDay ? `<span class="badge">⚠ human escalation dominates</span>` : "";
+
+    // ---- detail table ----
+    function latCell(ms) { return ms != null ? ms + "ms" : `<span class="na">n/a</span>`; }
+    const rows = [
+      ["STT", stt.name + (stt.kind === "self-hosted" ? ' <span class="tag oss">self-hosted</span>' : ""), stt.kind === "self-hosted" ? "Free*" : fmtCents(sttCostPerCall), latCell(latStt)],
+      ["LLM", llm.name, fmtCents(llmCostPerCall), latCell(latLlm)],
+      ["TTS", tts.name + (tts.kind === "self-hosted" ? ' <span class="tag oss">self-hosted</span>' : ""), tts.kind === "self-hosted" ? "Free*" : fmtCents(ttsCostPerCall), latCell(latTts)],
+      ["Telephony", telephony.name, telephonyNotComputable ? '<span class="na">n/a</span>' : fmtCents(telephonyCostPerDial), latCell(networkMs)],
+    ];
+    document.getElementById("detail-body").innerHTML = rows.map(r => {
+      const [mod, sel, cost, lat] = r;
+      return `<tr><td>${mod}</td><td>${sel}</td><td class="num">${cost}</td><td class="num">${lat}</td></tr>`;
+    }).join("") + `<tr><td colspan="4" style="font-size:11px; color:var(--text-faint); font-style:italic;">* Free = no API fee; real cost is GPU infrastructure — see GPU compute reference below, not multiplied in automatically.</td></tr>`;
+
+    // ---- GPU reference tile ----
+    document.getElementById("v-gpu-rate").textContent = "$" + gpu.perHr.toFixed(2) + "/hr";
+    document.getElementById("v-gpu-name").textContent = gpu.name;
+    document.getElementById("v-gpu-fleet").textContent = fmtMoney(gpu.perHr * 39000 * 24);
+
+    // ---- module notes ----
+    document.getElementById("note-stt").innerHTML = stt.note;
+    document.getElementById("note-llm").innerHTML = llm.note;
+    document.getElementById("note-tts").innerHTML = tts.note;
+    document.getElementById("note-telephony").innerHTML = telephony.note;
+    document.getElementById("note-gpu").innerHTML = gpu.note;
+  }
+
+  Object.values(els).forEach(el => el.addEventListener("input", recompute));
+  recompute();
+})();
+</script>

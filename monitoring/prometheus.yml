@@ -1,0 +1,10 @@
+# =============================================================================
+# monitoring/prometheus.yml (PLACEHOLDER)
+# =============================================================================
+#
+# Would scrape /healthz + a /metrics endpoint from every services/*
+# instance: request latency histograms (per docs/latency-budget.md's
+# stage-by-stage budget), queue depth (for scheduler's backpressure
+# logic), GPU utilization per pool, and escalation/containment rates
+# surfaced by analytics.
+# =============================================================================

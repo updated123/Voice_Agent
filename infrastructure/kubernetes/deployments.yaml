@@ -1,0 +1,24 @@
+# =============================================================================
+# kubernetes/deployments.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would define one Deployment + Service per entry in services/, split
+# across two node-pool classes:
+#
+#   CPU tier (media-server-adjacent, cheap, scales with concurrent calls):
+#     - vad-service, denoiser, scheduler, session-manager, analytics,
+#       billing, compliance (compliance is pure logic, no GPU needed)
+#
+#   GPU tier (scales with concurrently-SPEAKING calls, see docs/scaling.md
+#   on why VAD-gating keeps this smaller than raw concurrency):
+#     - stt-service   (asr-gpu-pool)
+#     - llm-gateway   (llm-gpu-pool)
+#     - tts-service   (tts-gpu-pool)
+#
+#   Coordinator tier (one lightweight replica per active call, stateless):
+#     - call-orchestrator
+#
+# Each Deployment would set resource requests/limits matching the
+# per-GPU throughput assumptions in benchmarks/cost_calculator.py, and a
+# readinessProbe/livenessProbe against each service's GET /healthz.
+# =============================================================================

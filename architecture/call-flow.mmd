@@ -1,0 +1,53 @@
+%% call-flow.mmd — the compliance FSM owned by services/compliance
+%% Source for docs/architecture.md and docs/security.md.
+%% Render with: mmdc -i call-flow.mmd -o call-flow.png
+%% Mirrors libs/voice_agent_core/dialogue/fsm.py exactly (TRANSITIONS table).
+
+stateDiagram-v2
+    [*] --> OPENING_DISCLOSURE
+
+    OPENING_DISCLOSURE --> IDENTITY_VERIFICATION: affirm
+    OPENING_DISCLOSURE --> WRONG_NUMBER_CLOSE: wrong_number
+    OPENING_DISCLOSURE --> CALLBACK_SCHEDULED: callback_request
+    OPENING_DISCLOSURE --> ESCALATE_TO_HUMAN: escalate_human / abusive_or_distress
+
+    IDENTITY_VERIFICATION --> DEBT_DISCLOSURE: affirm
+    IDENTITY_VERIFICATION --> WRONG_NUMBER_CLOSE: wrong_number
+    IDENTITY_VERIFICATION --> CALLBACK_SCHEDULED: callback_request
+    IDENTITY_VERIFICATION --> ESCALATE_TO_HUMAN: escalate_human / abusive_or_distress
+
+    DEBT_DISCLOSURE --> NEGOTIATION: affirm
+    DEBT_DISCLOSURE --> CLOSING: promise_to_pay
+    DEBT_DISCLOSURE --> DISPUTE_BRANCH: dispute
+    DEBT_DISCLOSURE --> HARDSHIP_BRANCH: hardship
+    DEBT_DISCLOSURE --> CALLBACK_SCHEDULED: callback_request
+    DEBT_DISCLOSURE --> ESCALATE_TO_HUMAN: escalate_human / abusive_or_distress
+
+    NEGOTIATION --> CLOSING: promise_to_pay
+    NEGOTIATION --> HARDSHIP_BRANCH: hardship
+    NEGOTIATION --> DISPUTE_BRANCH: dispute
+    NEGOTIATION --> CALLBACK_SCHEDULED: callback_request / refuse
+    NEGOTIATION --> ESCALATE_TO_HUMAN: escalate_human / abusive_or_distress
+
+    HARDSHIP_BRANCH --> CLOSING: promise_to_pay
+    HARDSHIP_BRANCH --> CALLBACK_SCHEDULED: callback_request
+    HARDSHIP_BRANCH --> ESCALATE_TO_HUMAN: escalate_human / abusive_or_distress
+
+    DISPUTE_BRANCH --> [*]: terminal — always routes to human
+    CALLBACK_SCHEDULED --> [*]: terminal
+    WRONG_NUMBER_CLOSE --> [*]: terminal
+    ESCALATE_TO_HUMAN --> [*]: terminal
+    CLOSING --> [*]: terminal
+
+    note right of ESCALATE_TO_HUMAN
+        Reachable from EVERY state.
+        Checked before other intents
+        in the classifier's priority
+        order — see docs/security.md.
+    end note
+
+    note right of DISPUTE_BRANCH
+        No outgoing transitions:
+        every dispute goes to a
+        human, no exceptions.
+    end note

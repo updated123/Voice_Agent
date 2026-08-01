@@ -1,0 +1,457 @@
+<title>Single-Call Technical Flow — Cache Checks &amp; Service Calls</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4;
+    --amber: #b8660f; --amber-soft: #f6e3cc;
+    --danger: #c4453a; --danger-soft: #f7dcda;
+    --edge: #8a9a93; --edge-label-bg: #ffffff; --pill-text: #ffffff;
+    --shadow: 0 1px 2px rgba(20,40,32,0.06), 0 8px 24px rgba(20,40,32,0.05);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+      --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+      --accent: #4fd1a5; --accent-soft: #15332a;
+      --amber: #f2a154; --amber-soft: #3a2a15;
+      --danger: #e2665a; --danger-soft: #3a1c1a;
+      --edge: #56655f; --edge-label-bg: #101c18; --pill-text: #06120d;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1210; --panel: #101c18; --panel-2: #0d1815; --border: #22332c;
+    --text: #e7f2ec; --text-dim: #93a89e; --text-faint: #5c6e66;
+    --accent: #4fd1a5; --accent-soft: #15332a;
+    --amber: #f2a154; --amber-soft: #3a2a15;
+    --danger: #e2665a; --danger-soft: #3a1c1a;
+    --edge: #56655f; --edge-label-bg: #101c18; --pill-text: #06120d;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef3f0; --panel: #ffffff; --panel-2: #f5f8f6; --border: #d7e2dc;
+    --text: #12211c; --text-dim: #56685f; --text-faint: #8b988f;
+    --accent: #1f9d74; --accent-soft: #d9f0e4;
+    --amber: #b8660f; --amber-soft: #f6e3cc;
+    --danger: #c4453a; --danger-soft: #f7dcda;
+    --edge: #8a9a93; --edge-label-bg: #ffffff; --pill-text: #ffffff;
+    --shadow: 0 1px 2px rgba(20,40,32,0.06), 0 8px 24px rgba(20,40,32,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  body { padding: 28px 20px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+  h1 { font-size: clamp(21px, 2.8vw, 28px); line-height: 1.15; margin: 0 0 10px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--text-dim); font-size: 14px; max-width: 74ch; line-height: 1.6; margin: 0 0 18px; }
+
+  .legend-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 14px 18px; margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 16px 26px; align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); }
+  .swatch { width: 16px; height: 16px; border-radius: 4px; flex: none; border: 1.6px solid transparent; }
+  .swatch.diamond { border-radius: 3px; transform: rotate(45deg); width: 12px; height: 12px; }
+  .legend-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+
+  .diagram-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 18px; overflow-x: auto;
+  }
+  .diagram-card svg { display: block; margin: 0 auto; }
+
+  footer { margin-top: 20px; font-size: 11.5px; color: var(--text-faint); line-height: 1.65; max-width: 92ch; }
+  footer code { font-family: var(--mono); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+
+  .info-section { margin-top: 26px; }
+  .info-section h2 { font-size: 16px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.005em; }
+  .info-section .section-desc { font-size: 12.5px; color: var(--text-dim); margin: 0 0 14px; line-height: 1.55; max-width: 82ch; }
+
+  .table-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .info-section table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 640px; }
+  .info-section thead th {
+    text-align: left; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); font-weight: 600; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .info-section tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .info-section tbody tr:last-child td { border-bottom: none; }
+  .info-section td.svc { font-weight: 600; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+  .info-section td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .info-section td.dim { color: var(--text-dim); }
+
+  .pill-tag {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    padding: 2px 9px; border-radius: 100px; white-space: nowrap;
+  }
+  .pill-tag.sync { background: var(--amber-soft); color: var(--amber); }
+  .pill-tag.async { background: var(--accent-soft); color: var(--accent); }
+  .pill-tag.tier-gpu { background: var(--danger-soft); color: var(--danger); }
+  .pill-tag.tier-cpu { background: var(--accent-soft); color: var(--accent); }
+  .pill-tag.tier-coord { background: var(--amber-soft); color: var(--amber); }
+
+  .svc-grid { display: flex; flex-direction: column; gap: 12px; }
+  .svc-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 16px 20px;
+  }
+  .svc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .svc-num {
+    font-family: var(--mono); font-size: 11px; color: var(--text-faint); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; flex: none;
+  }
+  .svc-name { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+  .svc-role { font-size: 13px; line-height: 1.55; margin: 0 0 10px; }
+  .svc-meta { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-size: 12px; line-height: 1.5; }
+  @media (max-width: 640px) { .svc-meta { grid-template-columns: 1fr; } }
+  .svc-meta dt { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+  .svc-meta dd { margin: 0 0 6px; color: var(--text-dim); }
+  .svc-meta code { font-family: var(--mono); font-size: 11.5px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; color: var(--text); }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Single call, one turn — engineering-level detail</p>
+  <h1>Where every cache check, timeout, and service call happens</h1>
+  <p class="sub">
+    Traces one borrower turn all the way through the pipeline — not the conceptual architecture, the actual
+    decision points: where state is read from a local cache vs. fetched over the network, where a GPU call
+    is skipped because the answer was already cached, where a timeout triggers a retry vs. a fallback, and
+    where the escalation path permanently diverges from the rest of the call. Matches
+    <code style="font-family:var(--mono); font-size:12.5px;">libs/voice_agent_core/orchestrator/pipeline.py</code>'s
+    real sequence, with the caching optimizations from the earlier chat walkthrough layered in.
+  </p>
+
+  <div class="legend-panel">
+    <div class="legend-item"><span class="swatch" style="background:var(--accent); border-color:var(--accent);"></span>Start / end of turn</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--panel-2); border-color:var(--border);"></span>Processing step</div>
+    <div class="legend-item"><span class="swatch diamond" style="background:var(--panel-2); border-color:var(--accent);"></span>Decision / cache check</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--amber-soft); border-color:var(--amber);"></span>Cache-miss / cold-path work</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--danger-soft); border-color:var(--danger);"></span>Failure / escalation exit</div>
+    <div class="legend-sep"></div>
+    <div class="legend-item">— solid line: normal flow</div>
+    <div class="legend-item">┄ dashed line: loops back to an earlier step</div>
+  </div>
+
+  <div class="diagram-card">
+<svg viewBox="0 0 1440 2274" width="1440" height="2274" xmlns="http://www.w3.org/2000/svg" font-family="var(--sans)">
+
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="var(--edge)"></path>
+  </marker>
+  <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"></path>
+  </marker>
+</defs>
+
+<path d="M560.0,84.0 L560.0,128.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,192.0 L560.0,236.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,320.0 L560.0,364.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M445.0,278.0 L190.0,278.0 L190.0,160.0 L410.0,160.0" fill="none" stroke="var(--edge)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)"></path>
+<path d="M560.0,428.0 L560.0,472.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,536.0 L560.0,580.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,676.0 L560.0,720.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,628.0 L722.5,628.0 L722.5,621.0 L770.0,621.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M770.0,621.0 L90.0,621.0 L90.0,57.0 L410.0,57.0" fill="none" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow-amber)"></path>
+<path d="M560.0,784.0 L560.0,828.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,924.0 L560.0,968.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,876.0 L722.5,876.0 L722.5,869.0 L770.0,869.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M920.0,906.0 L920.0,1000.0 L710.0,1000.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1032.0 L560.0,1076.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1172.0 L560.0,1216.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,1124.0 L722.5,1124.0 L722.5,1117.0 L770.0,1117.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M920.0,1154.0 L920.0,1248.0 L710.0,1248.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1280.0 L560.0,1324.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1420.0 L560.0,1464.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,1372.0 L722.5,1372.0 L722.5,1365.0 L770.0,1365.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M920.0,1402.0 L920.0,1501.0 L710.0,1501.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1538.0 L560.0,1582.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1666.0 L560.0,1710.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,1624.0 L912.5,1624.0 L912.5,1619.0 L1150.0,1619.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M1300.0,1656.0 L1300.0,1700.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M1300.0,1774.0 L1300.0,1818.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1806.0 L560.0,1850.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M675.0,1758.0 L722.5,1758.0 L722.5,1751.0 L770.0,1751.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber)"></path>
+<path d="M920.0,1788.0 L920.0,1882.0 L710.0,1882.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,1914.0 L560.0,1958.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,2032.0 L560.0,2076.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<path d="M560.0,2150.0 L560.0,2194.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow)"></path>
+<rect x="545.2" y="333.0" width="29.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="346.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">yes</text>
+<rect x="125.6" y="210.0" width="128.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="190.0" y="223.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">no — keep listening</text>
+<rect x="545.2" y="689.0" width="29.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="702.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">yes</text>
+<rect x="676.8" y="610.0" width="23.4" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="688.5" y="623.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">no</text>
+<rect x="56.6" y="330.0" width="66.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="90.0" y="343.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">next turn</text>
+<rect x="545.2" y="937.0" width="29.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="950.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">hit</text>
+<rect x="670.6" y="858.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="688.5" y="871.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">miss</text>
+<rect x="492.5" y="1185.0" width="135.0" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="1198.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">hit — skip GPU, ~1ms</text>
+<rect x="670.6" y="1106.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="688.5" y="1119.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">miss</text>
+<rect x="486.3" y="1433.0" width="147.4" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="1446.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">hit — skip network hop</text>
+<rect x="670.6" y="1354.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="688.5" y="1367.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">miss</text>
+<rect x="548.3" y="1679.0" width="23.4" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="1692.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">no</text>
+<rect x="863.7" y="1608.0" width="29.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="878.5" y="1621.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">yes</text>
+<rect x="480.1" y="1819.0" width="159.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="1832.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">hit — pre-rendered audio</text>
+<rect x="670.6" y="1740.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="688.5" y="1753.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">miss</text>
+<rect x="410.0" y="30.0" width="300" height="54" rx="27.0" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13.5" font-weight="700" fill="var(--pill-text)" font-family="var(--sans)"><tspan x="560" y="57.0">Audio frame arrives from Media Server</tspan></text>
+<rect x="410.0" y="128.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="160.0">vad-service: process_frame()</tspan></text>
+<polygon points="560,236 675.0,278.0 560,320 445.0,278.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="278.0">end_of_speech?</tspan></text>
+<rect x="410.0" y="364.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="396.0">denoiser: flush buffered speech</tspan></text>
+<rect x="410.0" y="472.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="504.0">stt-service: POST /transcribe (GPU pool)</tspan></text>
+<polygon points="560,580 675.0,628.0 560,676 445.0,628.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="619.2">responds within ~150ms?</tspan><tspan x="560" y="636.8">(1 retry, then fail)</tspan></text>
+<rect x="770.0" y="584.0" width="300" height="74" rx="10" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="612.0">Log ASR failure →</tspan><tspan x="920" y="630.0">re-prompt: “say that again”</tspan></text>
+<rect x="410.0" y="720.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="752.0">Transcript + confidence ready</tspan></text>
+<polygon points="560,828 675.0,876.0 560,924 445.0,876.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="867.2">Session state cached</tspan><tspan x="560" y="884.8">locally in orchestrator?</tspan></text>
+<rect x="770.0" y="832.0" width="300" height="74" rx="10" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="860.0">session-manager:</tspan><tspan x="920" y="878.0">GET /sessions/{id}</tspan></text>
+<rect x="410.0" y="968.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1000.0">Session state in hand</tspan></text>
+<polygon points="560,1076 675.0,1124.0 560,1172 445.0,1124.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1115.2">Normalized text in intent</tspan><tspan x="560" y="1132.8">cache?  (“yes” / “no” / “okay”…)</tspan></text>
+<rect x="770.0" y="1080.0" width="300" height="74" rx="10" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="1108.0">llm-gateway: POST /classify</tspan><tspan x="920" y="1126.0">(GPU pool)</tspan></text>
+<rect x="410.0" y="1216.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1248.0">Intent resolved</tspan></text>
+<polygon points="560,1324 675.0,1372.0 560,1420 445.0,1372.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1363.2">(state, intent) pair in local</tspan><tspan x="560" y="1380.8">LRU cache?  (pure function)</tspan></text>
+<rect x="770.0" y="1328.0" width="300" height="74" rx="10" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="1365.0">compliance: POST /transition</tspan></text>
+<rect x="410.0" y="1464.0" width="300" height="74" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1492.0">next_state + response_text</tspan><tspan x="560" y="1510.0">+ should_escalate ready</tspan></text>
+<polygon points="560,1582 675.0,1624.0 560,1666 445.0,1624.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1624.0">should_escalate?</tspan></text>
+<rect x="1150.0" y="1582.0" width="300" height="74" rx="10" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="1300" y="1610.0">Route to human queue +</tspan><tspan x="1300" y="1628.0">emit escalation event</tspan></text>
+<rect x="1150.0" y="1700.0" width="300" height="74" rx="10" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="1300" y="1728.0">session-manager: PATCH</tspan><tspan x="1300" y="1746.0">(escalated, closed)</tspan></text>
+<rect x="1150.0" y="1818.0" width="300" height="50" rx="25.0" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13.5" font-weight="700" fill="var(--pill-text)" font-family="var(--sans)"><tspan x="1300" y="1833.8">Turn complete →</tspan><tspan x="1300" y="1852.2">human agent</tspan></text>
+<polygon points="560,1710 675.0,1758.0 560,1806 445.0,1758.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1749.2">Exact response_text in</tspan><tspan x="560" y="1766.8">TTS phrase cache?</tspan></text>
+<rect x="770.0" y="1714.0" width="300" height="74" rx="10" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="1742.0">tts-service: POST /synthesize/stream</tspan><tspan x="920" y="1760.0">(GPU pool)</tspan></text>
+<rect x="410.0" y="1850.0" width="300" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1882.0">Stream audio → Media Server → Borrower</tspan></text>
+<rect x="410.0" y="1958.0" width="300" height="74" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1986.0">session-manager: PATCH state</tspan><tspan x="560" y="2004.0">(async — does not block audio)</tspan></text>
+<rect x="410.0" y="2076.0" width="300" height="74" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="2104.0">Emit event → Kafka →</tspan><tspan x="560" y="2122.0">analytics + billing (fire-and-forget)</tspan></text>
+<rect x="410.0" y="2194.0" width="300" height="50" rx="25.0" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13.5" font-weight="700" fill="var(--pill-text)" font-family="var(--sans)"><tspan x="560" y="2219.0">Turn complete</tspan></text>
+</svg>
+  </div>
+
+  <div class="info-section">
+    <h2>11 services — what each one is, and how it scales</h2>
+    <p class="section-desc">
+      One service per pipeline concern (see <code>services/</code>). Scaling tier follows
+      <code>docs/scaling.md</code>: GPU-tier services scale with concurrently-<em>speaking</em> calls (not
+      raw connected calls, since VAD gates silence out before it reaches them); CPU-tier services scale with
+      total concurrent calls; the coordinator scales 1:1 with concurrent calls since it holds no state itself.
+    </p>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>#</th><th>Service</th><th>Tier</th><th>Responsibility</th><th>Scaling model</th><th>Replicas @ 1B/day (conservative)</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td class="svc">call-orchestrator</td><td><span class="pill-tag tier-coord">coordinator</span></td><td class="dim">Coordinates one call's pipeline, turn by turn, across every other service. Holds no state itself.</td><td class="dim">1 lightweight replica per concurrently active call — the highest replica count in the system by design.</td><td class="num">~2.2M</td></tr>
+          <tr><td class="num">2</td><td class="svc">vad-service</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Frame-level speech detection + end-of-speech hangover timing.</td><td class="dim">Scales with total concurrent calls (runs continuously per call, even during silence).</td><td class="num">~2.2M streams / ~1.5K boxes</td></tr>
+          <tr><td class="num">3</td><td class="svc">denoiser</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Real-time speech enhancement ahead of STT.</td><td class="dim">Same tier/sizing as vad-service — co-located on the same media-server fleet.</td><td class="num">~1.5K boxes (shared)</td></tr>
+          <tr><td class="num">4</td><td class="svc">stt-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Streaming speech-to-text.</td><td class="dim">Scales with concurrently-<em>speaking</em> calls only — VAD gating keeps this well under raw concurrency.</td><td class="num">~22K GPUs</td></tr>
+          <tr><td class="num">5</td><td class="svc">llm-gateway</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">NLU / intent classification (small fine-tuned model in production).</td><td class="dim">Scales with turns/sec, not raw concurrency — short bursty calls, not held connections.</td><td class="num">~5.5K GPUs</td></tr>
+          <tr><td class="num">6</td><td class="svc">tts-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Streaming text-to-speech.</td><td class="dim">Scales with concurrently-<em>bot-speaking</em> calls.</td><td class="num">~11K GPUs</td></tr>
+          <tr><td class="num">7</td><td class="svc">compliance</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The FSM: mandatory disclosures, negotiation flow, escalation triggers.</td><td class="dim">Pure function of (state, intent) — no GPU, no session affinity, scales trivially horizontally.</td><td class="num">CPU-cheap</td></tr>
+          <tr><td class="num">8</td><td class="svc">session-manager</td><td><span class="pill-tag tier-cpu">stateful store</span></td><td class="dim">Externalized call-state (current FSM state, slots, transcript log).</td><td class="dim">Redis Cluster in production, sharded by call-id hash slot — a single instance can't hold ~2.2M live records.</td><td class="num">Sharded cluster</td></tr>
+          <tr><td class="num">9</td><td class="svc">scheduler</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Predictive dialer + live consent/DND/calling-hours gate.</td><td class="dim">Sharded by campaign/region — a single instance can't evaluate ~37K dial-decisions/sec at peak.</td><td class="num">Sharded</td></tr>
+          <tr><td class="num">10</td><td class="svc">analytics</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Call-outcome logging + rollup quality metrics.</td><td class="dim">Decoupled via Kafka consumer group — scales with event backlog, not call concurrency.</td><td class="num">Kafka consumers</td></tr>
+          <tr><td class="num">11</td><td class="svc">billing</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Per-call cost metering.</td><td class="dim">Same Kafka-decoupled pattern as analytics.</td><td class="num">Kafka consumers</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>Every service, in detail</h2>
+    <p class="section-desc">
+      What each service actually does, why it's split out as its own service rather than folded into
+      another, and what backend it runs today vs. in production. Matches the comment-only specs in
+      <code>services/*/main.py</code> — this is that content, expanded and cross-referenced.
+    </p>
+    <div class="svc-grid">
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">1</span><span class="svc-name">call-orchestrator</span><span class="pill-tag tier-coord">coordinator</span></div>
+        <p class="svc-role">Owns one call's pipeline turn-by-turn: takes audio in, calls vad-service → denoiser → stt-service, hands the transcript to llm-gateway for intent, passes (state, intent) to compliance for a decision, and streams tts-service's audio back out — reading and writing all state through session-manager instead of holding any itself.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>It's the one piece of logic that must change if the pipeline sequence changes — isolating it means every other service can be swapped or rescaled without touching call-flow orchestration.</dd>
+          <dt>State</dt><dd>None. Fully stateless — any replica can pick up any call's next turn, which is what lets it run ~1 lightweight replica per concurrent call.</dd>
+          <dt>Dev backend</dt><dd><code>libs/voice_agent_core/orchestrator/pipeline.py</code> — same sequence, in-process instead of over HTTP.</dd>
+          <dt>Depends on</dt><dd>vad-service, denoiser, stt-service, llm-gateway, compliance, tts-service, session-manager, analytics, billing.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">2</span><span class="svc-name">vad-service</span><span class="pill-tag tier-cpu">CPU tier</span></div>
+        <p class="svc-role">Classifies every audio frame as speech or silence, and tracks the "hangover" window that decides when the borrower has actually finished talking (not just paused) — the single parameter that trades interruption risk against sluggish turn-taking.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Runs on cheap CPU, on the media-server tier — keeping it separate from GPU-tier services means it scales (and is billed) independently of them.</dd>
+          <dt>State</dt><dd>Stateful per call: the hangover timer needs to persist frame-to-frame for one call. Sticky-routed to the call's media server in production.</dd>
+          <dt>Dev backend</dt><dd><code>EnergyVAD</code> + <code>HangoverVAD</code> — energy/zero-crossing-rate, no model download.</dd>
+          <dt>Production backend</dt><dd>Silero-VAD (ONNX), still CPU-only — a swap behind the same interface.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">3</span><span class="svc-name">denoiser</span><span class="pill-tag tier-cpu">CPU tier</span></div>
+        <p class="svc-role">Strips background noise from the borrower's audio before it reaches stt-service — one of the highest-leverage, lowest-cost quality levers available, since ASR errors compound into wrong intents and wrong bot responses.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Lets the denoise model be swapped or A/B tested independently of VAD and STT, even though it sits directly between them in the pipeline.</dd>
+          <dt>State</dt><dd>Stateful per call: the noise-floor estimate adapts over the session's duration.</dd>
+          <dt>Dev backend</dt><dd><code>SpectralGateDenoiser</code> — FFT spectral gating, numpy/scipy only.</dd>
+          <dt>Production backend</dt><dd>DeepFilterNet (or RNNoise for the lowest-CPU-cost tier) — real-time neural denoising.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">4</span><span class="svc-name">stt-service</span><span class="pill-tag tier-gpu">GPU tier</span></div>
+        <p class="svc-role">Transcribes the borrower's speech into text. The largest single GPU-compute line item in the whole system (~$0.42M–$1.4M/day depending on scenario, per <code>docs/cost-analysis.md</code>) because it runs continuously for the full duration of every speaking segment, not just briefly per turn like the LLM or TTS.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Needs its own autoscaling group — its throughput profile (continuous, per-speech-duration) is fundamentally different from llm-gateway's or tts-service's (bursty, per-turn).</dd>
+          <dt>State</dt><dd>Stateless per request — transcribes one already-VAD-segmented utterance at a time.</dd>
+          <dt>Dev backend</dt><dd><code>MockASR</code> — no acoustic model; reads attached ground-truth text and can inject word-error-rate to simulate realistic imperfection.</dd>
+          <dt>Production backend</dt><dd>Self-hosted streaming Conformer / distil-Whisper via CTranslate2 or NVIDIA Riva, continuous-batched.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">5</span><span class="svc-name">llm-gateway</span><span class="pill-tag tier-gpu">GPU tier</span></div>
+        <p class="svc-role">Classifies a borrower utterance into the fixed intent set the compliance FSM understands (promise-to-pay, dispute, hardship, wrong-number, callback-request, escalate, abusive/distress, refuse, affirm, unknown) — and nothing more. It does not decide what the bot says or does next.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service, separate from compliance</dt><dd>So a bad model update can never accidentally change what the bot is legally required to say — NLU and call-flow/compliance logic are architecturally impossible to conflate if they're different services.</dd>
+          <dt>State</dt><dd>Stateless — classifies one utterance per request, no memory between calls.</dd>
+          <dt>Dev backend</dt><dd><code>KeywordIntentClassifier</code> — regex/keyword matching, ordered so escalation/distress intents are checked before conversational ones.</dd>
+          <dt>Production backend</dt><dd>Fine-tuned 1–3B LLM, served via vLLM/TensorRT-LLM with continuous batching — not a frontier API (see <code>docs/cost-analysis.md</code> for why).</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">6</span><span class="svc-name">tts-service</span><span class="pill-tag tier-gpu">GPU tier</span></div>
+        <p class="svc-role">Synthesizes the bot's spoken response and streams it back — chunk by chunk, so the borrower hears the first word before the whole sentence has finished synthesizing.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Its streaming/cancellation contract (start speaking fast, stop instantly on barge-in) is a distinct concern from everything upstream, and needs to be owned and tested independently.</dd>
+          <dt>State</dt><dd>Stateless per request — synthesizes one response utterance as a stream of chunks.</dd>
+          <dt>Dev backend</dt><dd><code>MockStreamingTTS</code> — placeholder audio, but genuine streaming and mid-stream-cancellation semantics for barge-in.</dd>
+          <dt>Production backend</dt><dd>Streaming neural TTS (Kokoro-82M-class or Piper), served on GPU.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">7</span><span class="svc-name">compliance</span><span class="pill-tag tier-coord">stateless</span></div>
+        <p class="svc-role">The compliance backbone: owns the finite state machine for the call — mandatory disclosures, negotiation flow, and every escalation trigger (dispute, explicit human request, abuse/distress). Converts "the model should say the required disclosure" into "the model structurally cannot skip it."</p>
+        <dl class="svc-meta">
+          <dt>Why this is the most important service in the system</dt><dd>llm-gateway only classifies intent; it never decides the bot's next words or whether to escalate. That decision is a fixed transition table here — a bad NLU day can misclassify an intent, but it can never skip a disclosure or fail to escalate a dispute.</dd>
+          <dt>State</dt><dd>Intentionally none — <code>/transition</code> is a pure function of (current_state, intent). The actual current state is owned by session-manager and round-tripped by the caller on every request, which is exactly what makes this cacheable by (state, intent).</dd>
+          <dt>Dev backend</dt><dd><code>CallFSM</code> + response templates in <code>libs/voice_agent_core/dialogue/</code>.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">8</span><span class="svc-name">session-manager</span><span class="pill-tag tier-cpu">stateful store</span></div>
+        <p class="svc-role">The externalized call-state store: current FSM state, account slots, transcript log, escalation flag — for every in-progress call. This is what lets every other service in the system stay stateless.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Centralizing state here is the single design decision that lets call-orchestrator, compliance, and llm-gateway all crash and be replaced mid-call without losing the call.</dd>
+          <dt>State</dt><dd>All of it — this is the one genuinely stateful service in the system.</dd>
+          <dt>Dev backend</dt><dd>In-memory dict with the same read/write contract Redis would have.</dd>
+          <dt>Production backend</dt><dd>Redis Cluster, keyed by call-id, sharded by hash slot, with per-key TTL and replication ≥2 per shard.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">9</span><span class="svc-name">scheduler</span><span class="pill-tag tier-cpu">CPU tier</span></div>
+        <p class="svc-role">The predictive dialer and the live consent/DND/calling-hours compliance gate — checked immediately before every single dial, not as a once-a-day batch filter, since an opt-out must take effect within the same second it's registered.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Its job (deciding whether a dial is legally permitted right now) is entirely upstream of the call itself — it never touches an active conversation.</dd>
+          <dt>State</dt><dd>Reads consent/DND/opt-out state; doesn't own it (that lives in session-manager / the loan servicing backend).</dd>
+          <dt>Out of scope here</dt><dd>Real AMD (answering-machine detection) and real dial pacing against live carrier capacity both require a live telephony stack this prototype doesn't have.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">10</span><span class="svc-name">analytics</span><span class="pill-tag tier-cpu">CPU tier</span></div>
+        <p class="svc-role">Logs every call's outcome — final state, escalation, intents seen, turn latency — and computes the rollup metrics that feed the quality-evaluation loop: containment rate, escalation-trigger recall, task success rate, promise-to-pay rate (see <code>docs/monitoring.md</code>).</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Pure observability — must be structurally incapable of adding latency to a live call, which is easiest to guarantee by making it a separate, async-only consumer.</dd>
+          <dt>State</dt><dd>Owns the event log; doesn't participate in live call state.</dd>
+          <dt>Production backend</dt><dd>Kafka topic → analytics warehouse, not a synchronous call from call-orchestrator.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">11</span><span class="svc-name">billing</span><span class="pill-tag tier-cpu">CPU tier</span></div>
+        <p class="svc-role">Per-call cost metering, using the same unit-cost assumptions as <code>benchmarks/cost_calculator.py</code> — so a per-call estimate is always consistent with the fleet-level cost model, and specific calls/branches/model-versions can be traced back to the cost they actually drove.</p>
+        <dl class="svc-meta">
+          <dt>Why its own service</dt><dd>Same reasoning as analytics — cost metering must never sit on the critical path of a live conversation.</dd>
+          <dt>State</dt><dd>Owns usage/cost records; doesn't participate in live call state.</dd>
+          <dt>Production backend</dt><dd>Kafka-consumed real metering events (GPU-seconds billed, telephony CDRs, agent timesheets), not a synchronous per-call call.</dd>
+        </dl>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>Sync vs. async — every inter-service call in this diagram, and why</h2>
+    <p class="section-desc">
+      Default assumption: if a call's result changes what the bot says or does <em>this turn</em>, it's
+      synchronous and sits on the latency budget (<code>docs/latency-budget.md</code>). If it doesn't —
+      logging, billing, notifying a queue — it's asynchronous and must never be able to add delay to the
+      audio the borrower hears.
+    </p>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Call</th><th>Mode</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td class="svc dim">orchestrator → vad-service</td><td><span class="pill-tag sync">SYNC</span></td><td class="dim">Every audio frame needs an immediate speech/silence decision — this is the tightest loop in the system.</td></tr>
+          <tr><td class="svc dim">orchestrator → denoiser</td><td><span class="pill-tag sync">SYNC</span></td><td class="dim">Must finish before STT sees the audio — no useful work can happen concurrently with it.</td></tr>
+          <tr><td class="svc dim">orchestrator → stt-service</td><td><span class="pill-tag sync">SYNC</span> <span class="dim" style="font-size:11px;">(timeout + 1 retry)</span></td><td class="dim">The transcript is a hard input to everything downstream this turn — nothing to do until it arrives.</td></tr>
+          <tr><td class="svc dim">orchestrator → session-manager (read)</td><td><span class="pill-tag sync">SYNC</span> <span class="dim" style="font-size:11px;">(cache-miss only)</span></td><td class="dim">Cache-hit path makes zero network calls; only a cold start blocks on the network read.</td></tr>
+          <tr><td class="svc dim">orchestrator → llm-gateway</td><td><span class="pill-tag sync">SYNC</span> <span class="dim" style="font-size:11px;">(timeout + fallback)</span></td><td class="dim">The FSM can't transition without an intent — a timeout falls back to UNKNOWN rather than blocking indefinitely.</td></tr>
+          <tr><td class="svc dim">orchestrator → compliance</td><td><span class="pill-tag sync">SYNC</span></td><td class="dim">next_state/response_text/should_escalate are required before anything can be said to the borrower.</td></tr>
+          <tr><td class="svc dim">orchestrator → tts-service</td><td><span class="pill-tag sync">SYNC to first chunk, then streamed</span></td><td class="dim">Orchestrator waits for the first audio chunk (that's the latency that matters), then relays subsequent chunks as they arrive — the borrower never waits for full synthesis.</td></tr>
+          <tr><td class="svc dim">orchestrator → session-manager (write)</td><td><span class="pill-tag async">ASYNC</span></td><td class="dim">State is already in local memory for this turn; persisting it must never delay audio already streaming to the borrower.</td></tr>
+          <tr><td class="svc dim">compliance → human queue (escalation)</td><td><span class="pill-tag async">ASYNC dispatch</span></td><td class="dim">The escalation <em>decision</em> returns synchronously in the compliance response; actually paging/routing a human agent is fire-and-forget.</td></tr>
+          <tr><td class="svc dim">orchestrator → analytics</td><td><span class="pill-tag async">ASYNC (Kafka)</span></td><td class="dim">Pure observability — must never be able to add latency to a live call, ever.</td></tr>
+          <tr><td class="svc dim">orchestrator → billing</td><td><span class="pill-tag async">ASYNC (Kafka)</span></td><td class="dim">Same reasoning as analytics — cost metering is not on the critical path of the conversation.</td></tr>
+          <tr><td class="svc dim">scheduler → carrier / dial-decision</td><td><span class="pill-tag sync">SYNC</span></td><td class="dim">Happens once, before the call exists — blocking here costs nothing, since there's no borrower on the line yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Four cache checks are shown explicitly: session-state (local-to-orchestrator vs. session-manager fetch),
+    intent classification (skips the LLM GPU call entirely for common utterances), the compliance FSM
+    transition (a pure function of state+intent, cacheable by that key), and the TTS phrase cache (skips
+    synthesis for fixed/templated response text). See <code>docs/architecture.md</code> for why each of
+    these is safe to cache, and <code>docs/latency-budget.md</code> for the per-stage timing budget this
+    flow is designed against. Service inventory and scaling tiers match <code>services/</code> and
+    <code>docs/scaling.md</code>; sync/async choices follow one rule throughout: if it changes what happens
+    this turn, it blocks and counts against the latency budget — if it doesn't, it's fire-and-forget and
+    must never be able to slow down audio already streaming to the borrower.
+  </footer>
+</div>

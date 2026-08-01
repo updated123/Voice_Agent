@@ -1,0 +1,10 @@
+# =============================================================================
+# configs/feature-flags.yaml (PLACEHOLDER)
+# =============================================================================
+#
+# Would gate risky changes behind flags rather than global deploys --
+# e.g. rolling out a new llm-gateway model version to 0.1% of traffic
+# first (docs/monitoring.md's canary methodology), or toggling a new FSM
+# branch (e.g. an additional hardship sub-flow) on for a subset of
+# regions before a full rollout.
+# =============================================================================
