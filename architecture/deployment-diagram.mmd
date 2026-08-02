@@ -11,7 +11,7 @@ flowchart TB
             VADS[vad-service]
             DNS[denoiser]
             SCHED[scheduler]
-            SESS[session-manager<br/>+ Redis Cluster]
+            SESS[session-manager<br/>+ Aerospike<br/><small>Redis Cluster documented as fallback</small>]
             ANALYTICS[analytics]
             BILLING[billing]
         end
@@ -20,11 +20,16 @@ flowchart TB
             STT["stt-service<br/>~22K GPUs"]
             LLMGW["llm-gateway<br/>~5.5K GPUs"]
             TTSS["tts-service<br/>~11K GPUs"]
+            RAG["rag-service<br/>gap-closing"]
+            SENT["sentiment-detector<br/>gap-closing"]
+            INFR["inference-router<br/>gap-closing, shared batching layer"]
         end
 
         subgraph CoordTier["Coordinator tier"]
             ORCH["call-orchestrator<br/>~1 replica per concurrent call"]
             COMP["compliance<br/>stateless, no GPU"]
+            TOOLGW["tool-gateway<br/>gap-closing"]
+            MROUTER["model-router<br/>gap-closing"]
         end
 
         NGINX[nginx edge / TLS termination]
@@ -34,11 +39,18 @@ flowchart TB
         ORCH --> VADS
         ORCH --> DNS
         ORCH --> STT
-        ORCH --> LLMGW
+        ORCH --> MROUTER
+        MROUTER --> LLMGW
         ORCH --> COMP
+        COMP --> RAG
+        COMP --> TOOLGW
+        ORCH --> SENT
         ORCH --> TTSS
         ORCH --> SESS
         ORCH --> KAFKA
+        STT --> INFR
+        LLMGW --> INFR
+        TTSS --> INFR
         KAFKA --> ANALYTICS
         KAFKA --> BILLING
         SCHED --> ORCH

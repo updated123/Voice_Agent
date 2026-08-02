@@ -22,7 +22,7 @@ class CallState(str, Enum):
     DISPUTE_BRANCH = "dispute_branch"                # routes to human/dispute process
     WRONG_NUMBER_CLOSE = "wrong_number_close"         # polite close, flags number for removal
     CALLBACK_SCHEDULED = "callback_scheduled"
-    ESCALATE_TO_HUMAN = "escalate_to_human"           # hard exit to human queue -- see docs/08
+    ESCALATE_TO_HUMAN = "escalate_to_human"           # hard exit to human queue -- see docs/security.md
     CLOSING = "closing"
     ENDED = "ended"
 
@@ -70,7 +70,7 @@ TRANSITIONS: dict[CallState, dict[Intent, CallState]] = {
         Intent.PROMISE_TO_PAY: CallState.CLOSING,
         Intent.CALLBACK_REQUEST: CallState.CALLBACK_SCHEDULED,
     },
-    CallState.DISPUTE_BRANCH: {},   # every path out of a dispute goes to a human -- see docs/08
+    CallState.DISPUTE_BRANCH: {},   # every path out of a dispute goes to a human -- see docs/security.md
     CallState.CALLBACK_SCHEDULED: {},
     CallState.WRONG_NUMBER_CLOSE: {},
     CallState.ESCALATE_TO_HUMAN: {},

@@ -1,6 +1,8 @@
 %% sequence-diagram.mmd — one call turn across service boundaries
 %% Source for docs/architecture.md's turn-by-turn walkthrough.
 %% Render with: mmdc -i sequence-diagram.mmd -o sequence-diagram.png
+%% Includes all 16 services: the original 11 plus the 5 gap-closing additions
+%% (rag-service, tool-gateway, sentiment-detector, model-router, inference-router).
 
 sequenceDiagram
     participant Borrower
@@ -9,8 +11,12 @@ sequenceDiagram
     participant DNS as denoiser
     participant STT as stt-service
     participant ORCH as call-orchestrator
+    participant MROUTER as model-router
     participant LLM as llm-gateway
+    participant SENT as sentiment-detector
     participant COMP as compliance
+    participant RAG as rag-service
+    participant TOOLGW as tool-gateway
     participant SESS as session-manager
     participant TTS as tts-service
 
@@ -22,9 +28,28 @@ sequenceDiagram
     STT-->>ORCH: transcript (partial, then final)
     ORCH->>SESS: GET current call state
     SESS-->>ORCH: state, slots
-    ORCH->>LLM: classify(text)
-    LLM-->>ORCH: intent
-    ORCH->>COMP: transition(current_state, intent)
+
+    par Intent and tone — independent, run concurrently on the same audio
+        ORCH->>MROUTER: route(text)
+        MROUTER->>LLM: classify(text) [small or large tier]
+        LLM-->>ORCH: intent
+    and
+        ORCH->>SENT: classify-sentiment(audio)
+        SENT-->>ORCH: sentiment
+    end
+
+    ORCH->>COMP: transition(current_state, intent, sentiment)
+
+    opt intent = faq_or_policy_question
+        COMP->>RAG: retrieve(query, account_context)
+        RAG-->>COMP: passages, confident_match
+    end
+
+    opt transition needs an external fact or action (e.g. balance, schedule payment)
+        COMP->>TOOLGW: invoke(tool_name, args)
+        TOOLGW-->>COMP: result
+    end
+
     COMP-->>ORCH: next_state, response_text, should_escalate
     ORCH->>SESS: PATCH state, transcript_entry
     ORCH->>TTS: synthesize/stream(response_text)
@@ -32,3 +57,4 @@ sequenceDiagram
     Media-->>Borrower: bot speech
 
     Note over VAD,TTS: If VAD detects speech onset while<br/>TTS is still streaming: barge-in —<br/>orchestrator stops reading the TTS<br/>stream and processes the new utterance.
+    Note over STT,TTS: stt-service, llm-gateway, and tts-service all sit<br/>behind inference-router (shared GPU batching/<br/>load-balancing/model-version routing) — omitted<br/>as a per-call hop here for readability; see<br/>deployment-diagram.mmd for where it sits.

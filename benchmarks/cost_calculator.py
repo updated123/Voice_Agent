@@ -3,7 +3,7 @@
 Cost & capacity calculator for the loan-collection voice agent.
 
 Edit the ASSUMPTIONS block and rerun: `python3 cost_calculator.py`
-Every number in docs/04-capacity-planning.md and docs/05-cost-model.md is
+Every number in docs/scaling.md and docs/cost-analysis.md is
 reproducible from this script (with the same assumptions stated there).
 
 This is a planning model, not a bill-of-materials — replace the per-GPU
