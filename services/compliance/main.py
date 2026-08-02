@@ -39,4 +39,49 @@
 # libs/voice_agent_core/dialogue/manager.py -- CallFSM, TRANSITIONS,
 # RESPONSE_TEMPLATES are already implemented and unit-tested there;
 # this service is the HTTP-boundary placeholder around that logic.)
+#
+# -----------------------------------------------------------------------
+# FOLDED IN: tool calling (previously a standalone service, "tool-gateway")
+# -----------------------------------------------------------------------
+#   RESPONSIBILITY: the single, named-function boundary between the
+#   conversation and every external system of record (loan servicing
+#   backend, CRM, payment scheduling). Every fact the bot states about an
+#   account, and every action it takes on one, goes through a named tool
+#   call here -- never through the LLM generating a number or a decision
+#   from its own "judgment."
+#
+#   TOOL REGISTRY (indicative, not exhaustive): getLoanDetails(account_id),
+#   getOutstandingBalance(account_id), schedulePayment(account_id, date,
+#   amount), updateCRM(account_id, outcome), checkIdentity(account_id,
+#   challenge_response), requestHumanTransfer(reason)
+#
+#   LOGIC / FLOW (example: "how much do I owe?")
+#     1. llm-gateway classifies the utterance's intent (e.g. `balance_inquiry`)
+#     2. This service's FSM transition for that intent specifies which
+#        tool(s) it needs filled in before it can render its response
+#        template
+#     3. The tool call executes against the loan servicing backend, gets
+#        back a real number, returns it as a structured value -- never as
+#        free text
+#     4. The response template's {amount_due} slot is filled with that
+#        value
+#
+#   WHY IT WAS FOLDED HERE, NOT LEFT AS ITS OWN SERVICE: the original
+#   split was justified as "compliance decides WHAT to do, tool-gateway
+#   decides HOW that reaches an external system" -- a real distinction,
+#   but one that doesn't require a second network hop to preserve. Only
+#   `compliance` ever called it (a self-critique of the original
+#   16-service design found this to be a "soft" justification -- see
+#   docs/future-improvements.md); nothing else in the system needs to
+#   invoke a tool independently of an FSM transition deciding to. The
+#   WHAT/HOW distinction is preserved as an internal module boundary
+#   (a distinct function per tool, a reviewed allow-list, structured
+#   values only -- never free text from the LLM) rather than a service
+#   boundary. Auth scopes and the allow-list are still owned by this
+#   module specifically, not scattered through FSM transition logic, so
+#   adding a new tool is still a reviewed, explicit registry change.
+#
+#   API CONTRACT (internal, not borrower-facing):
+#     invoke_tool(tool_name, session_id, account_id, args) -> { result, error? }
+#     list_tools() -> the registered, allowed tool set
 # =============================================================================

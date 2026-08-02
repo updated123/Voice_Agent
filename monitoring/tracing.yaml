@@ -16,8 +16,9 @@
 #   propagating a single trace_id per call (or per turn, for the more
 #   granular case) through every hop of a turn:
 #     call-orchestrator -> vad-service -> denoiser -> stt-service ->
-#     model-router -> llm-gateway (+ sentiment-detector in parallel) ->
-#     compliance (+ rag-service / tool-gateway conditionally) ->
+#     llm-gateway (intent + sentiment + model-tier routing, folded in --
+#     see services/llm-gateway/main.py) -> compliance (+ tool calling +
+#     rag-service conditionally -- see services/compliance/main.py) ->
 #     tts-service -> back to the media server
 #   Each span records: which service, how long, cache hit or miss (ties
 #   directly into every caching decision documented across services/*),

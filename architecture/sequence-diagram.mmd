@@ -1,8 +1,11 @@
 %% sequence-diagram.mmd — one call turn across service boundaries
 %% Source for docs/architecture.md's turn-by-turn walkthrough.
 %% Render with: mmdc -i sequence-diagram.mmd -o sequence-diagram.png
-%% Includes all 16 services: the original 11 plus the 5 gap-closing additions
-%% (rag-service, tool-gateway, sentiment-detector, model-router, inference-router).
+%% Includes all 12 services. An earlier draft had 16 -- tool-gateway,
+%% sentiment-detector, model-router, and inference-router were folded into
+%% compliance/llm-gateway/infrastructure after none of the four cleared this
+%% design's own criteria for a standalone service. See docs/architecture.md's
+%% "Consolidated into an existing service, not left as a separate one".
 
 sequenceDiagram
     participant Borrower
@@ -11,12 +14,9 @@ sequenceDiagram
     participant DNS as denoiser
     participant STT as stt-service
     participant ORCH as call-orchestrator
-    participant MROUTER as model-router
     participant LLM as llm-gateway
-    participant SENT as sentiment-detector
     participant COMP as compliance
     participant RAG as rag-service
-    participant TOOLGW as tool-gateway
     participant SESS as session-manager
     participant TTS as tts-service
 
@@ -29,14 +29,9 @@ sequenceDiagram
     ORCH->>SESS: GET current call state
     SESS-->>ORCH: state, slots
 
-    par Intent and tone — independent, run concurrently on the same audio
-        ORCH->>MROUTER: route(text)
-        MROUTER->>LLM: classify(text) [small or large tier]
-        LLM-->>ORCH: intent
-    and
-        ORCH->>SENT: classify-sentiment(audio)
-        SENT-->>ORCH: sentiment
-    end
+    ORCH->>LLM: classify(text, audio)
+    Note over LLM: Internally: picks small/large model tier,<br/>classifies intent, classifies sentiment from<br/>tone — folded-in responsibilities, not separate<br/>network hops. See services/llm-gateway/main.py.
+    LLM-->>ORCH: intent, sentiment
 
     ORCH->>COMP: transition(current_state, intent, sentiment)
 
@@ -45,10 +40,7 @@ sequenceDiagram
         RAG-->>COMP: passages, confident_match
     end
 
-    opt transition needs an external fact or action (e.g. balance, schedule payment)
-        COMP->>TOOLGW: invoke(tool_name, args)
-        TOOLGW-->>COMP: result
-    end
+    Note over COMP: If the transition needs an external fact or<br/>action (e.g. balance, schedule payment): invokes<br/>a registered tool internally against the loan<br/>servicing backend/CRM — folded in, not a separate<br/>network hop. See services/compliance/main.py.
 
     COMP-->>ORCH: next_state, response_text, should_escalate
     ORCH->>SESS: PATCH state, transcript_entry
@@ -57,4 +49,4 @@ sequenceDiagram
     Media-->>Borrower: bot speech
 
     Note over VAD,TTS: If VAD detects speech onset while<br/>TTS is still streaming: barge-in —<br/>orchestrator stops reading the TTS<br/>stream and processes the new utterance.
-    Note over STT,TTS: stt-service, llm-gateway, and tts-service all sit<br/>behind inference-router (shared GPU batching/<br/>load-balancing/model-version routing) — omitted<br/>as a per-call hop here for readability; see<br/>deployment-diagram.mmd for where it sits.
+    Note over STT,TTS: stt-service, llm-gateway, and tts-service all sit<br/>behind a shared GPU batching/load-balancing layer<br/>(Triton or vLLM/TensorRT-LLM's own serving stack —<br/>infrastructure, not a service) — omitted as a<br/>per-call hop here for readability; see<br/>deployment-diagram.mmd for where it sits.

@@ -213,7 +213,7 @@
 <line x1="40" y1="1292.0" x2="1740" y2="1292.0" stroke="var(--border)" stroke-width="1.4"></line>
 <text x="40" y="1262.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 4 — RESOLUTION (one of several exits from the turn loop)</text>
 <rect x="50.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
-<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="200" y="1323.2">Promise-to-pay: tool-gateway schedulePayment()</tspan><tspan x="200" y="1340.8">+ updateCRM() → closing script played</tspan></text>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="200" y="1323.2">Promise-to-pay: compliance calls schedulePayment()</tspan><tspan x="200" y="1340.8">+ updateCRM() → closing script played</tspan></text>
 <rect x="410.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
 <text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1323.2">Escalation: routed to Human Agent Queue,</tspan><tspan x="560" y="1340.8">full transcript/context handed off</tspan></text>
 <rect x="770.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
@@ -268,7 +268,7 @@
 
       <p style="font-size:13px; line-height:1.6; margin:0 0 12px;"><b>Phase 4 — Resolution.</b> The turn loop
       exits through exactly one of four doors, decided by <code>compliance</code>'s FSM, never by the LLM
-      free-forming an ending: <b>promise-to-pay</b> (<code>tool-gateway</code> calls
+      free-forming an ending: <b>promise-to-pay</b> (<code>compliance</code>'s tool-calling module invokes
       <code>schedulePayment()</code> and <code>updateCRM()</code> before the closing script plays),
       <b>escalation</b> (full transcript and context handed to a human agent — triggered by an explicit
       request, a dispute, or detected distress, and this path is reachable from <i>any</i> state in the FSM,
@@ -428,16 +428,20 @@
   </div>
 
   <div class="info-section">
-    <h2>16 services — what each one is, and how it scales</h2>
+    <h2>12 services — what each one is, and how it scales</h2>
     <p class="section-desc">
       One service per pipeline concern (see <code>services/</code>). Scaling tier follows
       <code>docs/scaling.md</code>: GPU-tier services scale with concurrently-<em>speaking</em> calls (not
       raw connected calls, since VAD gates silence out before it reaches them); CPU-tier services scale with
       total concurrent calls; the coordinator scales 1:1 with concurrent calls since it holds no state itself.
-      The last 5 rows (12-16) were added after auditing this design against a standard enterprise-conversational-AI
-      checklist and finding real gaps — see <code>docs/architecture.md</code>, "Components added to close identified gaps."
-      (A sixth candidate, voice-biometric fraud detection, was considered and cut — see
-      <code>docs/future-improvements.md</code>.)
+      Row 12 (rag-service) was added after auditing this design against a standard enterprise-conversational-AI
+      checklist and finding a real gap — see <code>docs/architecture.md</code>, "Components added to close an
+      identified gap." Three more candidates from that same audit (tool-gateway, sentiment-detector,
+      model-router) plus a fourth (inference-router) were tried as standalone services in an earlier draft,
+      then folded into <code>llm-gateway</code>/<code>compliance</code>/infrastructure after none of them
+      cleared this design's own criteria for a separate service — see <code>docs/architecture.md</code>,
+      "Consolidated into an existing service, not left as a separate one." (A sixth candidate, voice-biometric
+      fraud detection, was considered and cut entirely — see <code>docs/future-improvements.md</code>.)
     </p>
     <div class="table-card">
       <table>
@@ -447,18 +451,14 @@
           <tr><td class="num">2</td><td class="svc">vad-service</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Frame-level speech detection + end-of-speech hangover timing.</td><td class="dim">Scales with total concurrent calls (runs continuously per call, even during silence).</td><td class="num">~2.2M streams / ~1.5K boxes</td></tr>
           <tr><td class="num">3</td><td class="svc">denoiser</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Real-time speech enhancement ahead of STT.</td><td class="dim">Same tier/sizing as vad-service — co-located on the same media-server fleet.</td><td class="num">~1.5K boxes (shared)</td></tr>
           <tr><td class="num">4</td><td class="svc">stt-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Streaming speech-to-text.</td><td class="dim">Scales with concurrently-<em>speaking</em> calls only — VAD gating keeps this well under raw concurrency.</td><td class="num">~22K GPUs</td></tr>
-          <tr><td class="num">5</td><td class="svc">llm-gateway</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">NLU / intent classification (small fine-tuned model in production).</td><td class="dim">Scales with turns/sec, not raw concurrency — short bursty calls, not held connections.</td><td class="num">~5.5K GPUs</td></tr>
+          <tr><td class="num">5</td><td class="svc">llm-gateway</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">NLU: intent + sentiment classification + model-tier routing (small fine-tuned model in production). Sentiment and model-tier routing were separate services in an earlier draft, folded in here.</td><td class="dim">Scales with turns/sec, not raw concurrency — short bursty calls, not held connections.</td><td class="num">~5.5K GPUs</td></tr>
           <tr><td class="num">6</td><td class="svc">tts-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Streaming text-to-speech.</td><td class="dim">Scales with concurrently-<em>bot-speaking</em> calls.</td><td class="num">~11K GPUs</td></tr>
-          <tr><td class="num">7</td><td class="svc">compliance</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The FSM: mandatory disclosures, negotiation flow, escalation triggers.</td><td class="dim">Pure function of (state, intent) — no GPU, no session affinity, scales trivially horizontally.</td><td class="num">CPU-cheap</td></tr>
+          <tr><td class="num">7</td><td class="svc">compliance</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The FSM: mandatory disclosures, negotiation flow, escalation triggers. Also owns tool calling to external systems (loan servicing backend, CRM) — a separate service in an earlier draft, folded in here.</td><td class="dim">Pure function of (state, intent) — no GPU, no session affinity, scales trivially horizontally.</td><td class="num">CPU-cheap</td></tr>
           <tr><td class="num">8</td><td class="svc">session-manager</td><td><span class="pill-tag tier-cpu">stateful store</span></td><td class="dim">Externalized call-state (current FSM state, slots, transcript log).</td><td class="dim">Aerospike in production (Redis Cluster documented as the alternative), sharded by call-id — a single instance can't hold ~2.2M live records.</td><td class="num">Sharded cluster</td></tr>
           <tr><td class="num">9</td><td class="svc">scheduler</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Predictive dialer + live consent/DND/calling-hours gate.</td><td class="dim">Sharded by campaign/region — a single instance can't evaluate ~37K dial-decisions/sec at peak.</td><td class="num">Sharded</td></tr>
           <tr><td class="num">10</td><td class="svc">analytics</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Call-outcome logging + rollup quality metrics.</td><td class="dim">Decoupled via Kafka consumer group — scales with event backlog, not call concurrency.</td><td class="num">Kafka consumers</td></tr>
           <tr><td class="num">11</td><td class="svc">billing</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Per-call cost metering.</td><td class="dim">Same Kafka-decoupled pattern as analytics.</td><td class="num">Kafka consumers</td></tr>
           <tr><td class="num">12</td><td class="svc">rag-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Retrieves policy/FAQ passages for off-script questions outside the fixed intent set.</td><td class="dim">Scales with turns/sec that classify as `faq_or_policy_question` — a small slice of total turns.</td><td class="num">Gap-closing addition</td></tr>
-          <tr><td class="num">13</td><td class="svc">tool-gateway</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The named-function boundary to external systems — the bot never invents a balance or a date.</td><td class="dim">Stateless, scales with tool-call volume, trivially horizontal.</td><td class="num">Gap-closing addition</td></tr>
-          <tr><td class="num">14</td><td class="svc">sentiment-detector</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Tone/emotion classification from audio, alongside (not instead of) intent classification.</td><td class="dim">Same scaling shape as stt-service — runs on the same speaking-segment audio.</td><td class="num">Gap-closing addition</td></tr>
-          <tr><td class="num">15</td><td class="svc">model-router</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">Routes each turn to a small/fast or larger/capable LLM tier based on complexity.</td><td class="dim">Stateless, cheap pre-classifier — scales with turns/sec, negligible cost itself.</td><td class="num">Gap-closing addition</td></tr>
-          <tr><td class="num">16</td><td class="svc">inference-router</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Shared batching/load-balancing/model-version-routing layer for all GPU-tier services.</td><td class="dim">Not independently scaled — sits in front of the existing stt/llm/tts GPU pools.</td><td class="num">Gap-closing addition</td></tr>
         </tbody>
       </table>
     </div>
@@ -519,9 +519,10 @@
 
       <div class="svc-card">
         <div class="svc-head"><span class="svc-num">5</span><span class="svc-name">llm-gateway</span><span class="pill-tag tier-gpu">GPU tier</span></div>
-        <p class="svc-role">Classifies a borrower utterance into the fixed intent set the compliance FSM understands (promise-to-pay, dispute, hardship, wrong-number, callback-request, escalate, abusive/distress, refuse, affirm, unknown) — and nothing more. It does not decide what the bot says or does next.</p>
+        <p class="svc-role">Classifies a borrower utterance into the fixed intent set the compliance FSM understands (promise-to-pay, dispute, hardship, wrong-number, callback-request, escalate, abusive/distress, refuse, affirm, unknown) — and nothing more. It does not decide what the bot says or does next. Also owns sentiment classification (tone: calm/frustrated/distressed/angry) and per-turn model-tier routing (small vs. large model), both folded in from an earlier draft's separate services.</p>
         <dl class="svc-meta">
           <dt>Why its own service, separate from compliance</dt><dd>So a bad model update can never accidentally change what the bot is legally required to say — NLU and call-flow/compliance logic are architecturally impossible to conflate if they're different services.</dd>
+          <dt>Why sentiment + model-tier routing are folded in here, not separate services</dt><dd>Both consume the same utterance on the same GPU pool on the same request path as intent classification, and produce sibling outputs compliance reads together — an earlier draft split them out as <code>sentiment-detector</code> and <code>model-router</code>, but neither had a genuinely independent scaling curve or failure domain, so the extra network hop bought no real isolation. See <code>services/llm-gateway/main.py</code>'s "FOLDED IN" sections and <code>docs/architecture.md</code>.</dd>
           <dt>State</dt><dd>Stateless — classifies one utterance per request, no memory between calls.</dd>
           <dt>Dev backend</dt><dd><code>KeywordIntentClassifier</code> — regex/keyword matching, ordered so escalation/distress intents are checked before conversational ones.</dd>
           <dt>Production backend</dt><dd>Fine-tuned 1–3B LLM, served via vLLM/TensorRT-LLM with continuous batching — not a frontier API (see <code>docs/cost-analysis.md</code> for why).</dd>
@@ -541,11 +542,13 @@
 
       <div class="svc-card">
         <div class="svc-head"><span class="svc-num">7</span><span class="svc-name">compliance</span><span class="pill-tag tier-coord">stateless</span></div>
-        <p class="svc-role">The compliance backbone: owns the finite state machine for the call — mandatory disclosures, negotiation flow, and every escalation trigger (dispute, explicit human request, abuse/distress). Converts "the model should say the required disclosure" into "the model structurally cannot skip it."</p>
+        <p class="svc-role">The compliance backbone: owns the finite state machine for the call — mandatory disclosures, negotiation flow, and every escalation trigger (dispute, explicit human request, abuse/distress). Converts "the model should say the required disclosure" into "the model structurally cannot skip it." Also owns tool calling — the single named-function boundary to external systems of record (loan servicing backend, CRM) — folded in from an earlier draft's separate service.</p>
         <dl class="svc-meta">
           <dt>Why this is the most important service in the system</dt><dd>llm-gateway only classifies intent; it never decides the bot's next words or whether to escalate. That decision is a fixed transition table here — a bad NLU day can misclassify an intent, but it can never skip a disclosure or fail to escalate a dispute.</dd>
+          <dt>Why tool calling is folded in here, not a separate service</dt><dd>An earlier draft split this out as <code>tool-gateway</code>, reasoning "compliance decides WHAT, tool-gateway decides HOW" — a real distinction, but one that only <code>compliance</code> ever called into, so it never needed its own network hop to stay separable. The WHAT/HOW distinction is preserved as an internal module boundary (a reviewed tool registry and allow-list) instead. See <code>services/compliance/main.py</code>'s "FOLDED IN" section.</dd>
           <dt>State</dt><dd>Intentionally none — <code>/transition</code> is a pure function of (current_state, intent). The actual current state is owned by session-manager and round-tripped by the caller on every request, which is exactly what makes this cacheable by (state, intent).</dd>
           <dt>Dev backend</dt><dd><code>CallFSM</code> + response templates in <code>libs/voice_agent_core/dialogue/</code>.</dd>
+          <dt>Example tools</dt><dd><code>getOutstandingBalance()</code>, <code>schedulePayment()</code>, <code>updateCRM()</code>, <code>requestHumanTransfer()</code>.</dd>
         </dl>
       </div>
 
@@ -601,48 +604,9 @@
         </dl>
       </div>
 
-      <div class="svc-card">
-        <div class="svc-head"><span class="svc-num">13</span><span class="svc-name">tool-gateway</span><span class="pill-tag tier-coord">stateless</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
-        <p class="svc-role">The single named-function boundary between the conversation and every external system of record — every fact the bot states about an account, and every action it takes, goes through a registered tool call here.</p>
-        <dl class="svc-meta">
-          <dt>Gap it closes</dt><dd>Previously informal — compliance "called out" to the loan servicing backend narratively, with no defined contract or enforced allow-list of what the bot may call.</dd>
-          <dt>Why its own service, separate from compliance</dt><dd>compliance decides WHAT to do; tool-gateway decides HOW that reaches an external system — the tool registry can change without touching the FSM, and vice versa.</dd>
-          <dt>State</dt><dd>Stateless — each call is one named function invocation with its own inputs/outputs.</dd>
-          <dt>Example tools</dt><dd><code>getOutstandingBalance()</code>, <code>schedulePayment()</code>, <code>updateCRM()</code>, <code>requestHumanTransfer()</code>.</dd>
-        </dl>
-      </div>
-
-      <div class="svc-card">
-        <div class="svc-head"><span class="svc-num">14</span><span class="svc-name">sentiment-detector</span><span class="pill-tag tier-gpu">GPU tier</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
-        <p class="svc-role">Classifies the borrower's tone (calm/frustrated/distressed/angry) from the audio itself, feeding compliance alongside — not instead of — llm-gateway's intent classification, so response strategy can adapt to how someone feels, not just what they said.</p>
-        <dl class="svc-meta">
-          <dt>Gap it closes</dt><dd>Distress detection today is keyword-based only (an `abusive_or_distress` intent triggered by specific phrases) — an agitated borrower who never says a trigger phrase gets the same script as a calm one.</dd>
-          <dt>Why its own service, separate from llm-gateway</dt><dd>Intent answers "what do they want"; sentiment answers "how do they feel while wanting it" — conflating them makes both harder to improve and audit independently.</dd>
-          <dt>State</dt><dd>Stateless per utterance.</dd>
-          <dt>Example use</dt><dd>Angry + any state → lower escalation threshold, without requiring a hardcoded distress phrase.</dd>
-        </dl>
-      </div>
-
-      <div class="svc-card">
-        <div class="svc-head"><span class="svc-num">15</span><span class="svc-name">model-router</span><span class="pill-tag tier-coord">stateless</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
-        <p class="svc-role">Decides, per turn, whether llm-gateway should run a cheap/fast model or a larger/capable one — turning "pick one model tier for the whole deployment" into a per-request cost/latency decision.</p>
-        <dl class="svc-meta">
-          <dt>Gap it closes</dt><dd>Multiple LLM tiers were already documented with real cost/latency deltas (<code>cost-latency-calculator.html</code>) but the choice was static per-deployment, not per-turn — most turns in a scripted flow are the easy case, which is where the savings are.</dd>
-          <dt>Why its own service, separate from llm-gateway</dt><dd>llm-gateway classifies; model-router makes a cost/latency decision about how to classify — the routing policy can be tuned without touching the classifier.</dd>
-          <dt>The guardrail this needs</dt><dd>Must never reduce escalation-trigger recall — anything the pre-classifier isn't confident is "easy" should default to the larger tier, not the cheaper one.</dd>
-          <dt>State</dt><dd>Stateless — one routing decision per turn.</dd>
-        </dl>
-      </div>
-
-      <div class="svc-card">
-        <div class="svc-head"><span class="svc-num">16</span><span class="svc-name">inference-router</span><span class="pill-tag tier-gpu">GPU tier</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
-        <p class="svc-role">The shared batching/load-balancing/model-version-routing layer in front of the GPU pools backing stt-service, llm-gateway, and tts-service — not borrower-facing, an internal dispatch layer the GPU-tier services call into.</p>
-        <dl class="svc-meta">
-          <dt>Gap it closes</dt><dd>Continuous batching (vLLM/TensorRT-LLM) and model-version pinning were already specified as part of each GPU-tier service's production backend, but nothing named the component that performs it as shared infrastructure rather than something reimplemented three times.</dd>
-          <dt>Why its own service</dt><dd>Batching/load-balancing/version-routing is the same problem for all three GPU-tier services — solving it once means a batching-efficiency improvement (the single biggest AI-compute cost lever) benefits all three at once.</dd>
-          <dt>State</dt><dd>Tracks in-flight batches and replica health/load — ephemeral, not call state.</dd>
-          <dt>Production backend</dt><dd>NVIDIA Triton Inference Server, or the batching layer built into vLLM/TensorRT-LLM directly.</dd>
-        </dl>
+      <div class="svc-card" style="grid-column: 1 / -1;">
+        <div class="svc-head"><span class="pill-tag tier-coord">consolidated</span><span class="svc-name">tool-gateway, sentiment-detector, model-router, inference-router — folded, not dropped</span></div>
+        <p class="svc-role">An earlier draft of this design added these four as standalone services (bringing the total to 16). Auditing that draft against this doc's own criteria for splitting out a service — a genuinely different scaling curve, a compliance/security boundary, or a distinct external vendor integration — found that none of the four cleared it: each shared its scaling curve, deploy lifecycle, and failure domain with a direct neighbor. Rather than ship four self-acknowledged "soft" justifications, each was folded into that neighbor as an explicitly-labeled internal module: <code>tool-gateway</code> → <b>compliance</b> (card 7 above), <code>sentiment-detector</code> and <code>model-router</code> → <b>llm-gateway</b> (card 5 above), and <code>inference-router</code> → shared GPU-serving infrastructure (Triton / vLLM / TensorRT-LLM's own batching layer), not a service at all. See <code>docs/architecture.md</code>'s "Consolidated into an existing service, not left as a separate one" and <code>docs/future-improvements.md</code> for the full reasoning.</p>
       </div>
 
     </div>

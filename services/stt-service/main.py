@@ -59,7 +59,8 @@
 #     3. If confidence is low (or the utterance exceeds the duration
 #        threshold), escalate to the full streaming Conformer/distil-Whisper
 #        model.
-#   This mirrors model-router's tiered-model principle (services/model-router),
+#   This mirrors llm-gateway's own tiered-model routing principle (see its
+#   "FOLDED IN: model-tier routing" section, services/llm-gateway/main.py),
 #   applied one stage earlier in the pipeline -- cheap-first, expensive-only-
 #   when-needed, rather than cache-hit-vs-miss.
 #

@@ -18,18 +18,15 @@ flowchart TB
 
         subgraph GPUTier["GPU node pools (~39K GPUs region-wide, conservative)"]
             STT["stt-service<br/>~22K GPUs"]
-            LLMGW["llm-gateway<br/>~5.5K GPUs"]
+            LLMGW["llm-gateway<br/>~5.5K GPUs<br/><small>intent + sentiment + model-tier routing</small>"]
             TTSS["tts-service<br/>~11K GPUs"]
             RAG["rag-service<br/>gap-closing"]
-            SENT["sentiment-detector<br/>gap-closing"]
-            INFR["inference-router<br/>gap-closing, shared batching layer"]
+            TRITON["(shared GPU batching/routing layer:<br/>Triton or vLLM/TensorRT-LLM's own<br/>serving stack -- infra, not a service)"]
         end
 
         subgraph CoordTier["Coordinator tier"]
             ORCH["call-orchestrator<br/>~1 replica per concurrent call"]
-            COMP["compliance<br/>stateless, no GPU"]
-            TOOLGW["tool-gateway<br/>gap-closing"]
-            MROUTER["model-router<br/>gap-closing"]
+            COMP["compliance<br/>stateless, no GPU<br/><small>+ tool calling to loan servicing backend/CRM</small>"]
         end
 
         NGINX[nginx edge / TLS termination]
@@ -39,18 +36,15 @@ flowchart TB
         ORCH --> VADS
         ORCH --> DNS
         ORCH --> STT
-        ORCH --> MROUTER
-        MROUTER --> LLMGW
+        ORCH --> LLMGW
         ORCH --> COMP
         COMP --> RAG
-        COMP --> TOOLGW
-        ORCH --> SENT
         ORCH --> TTSS
         ORCH --> SESS
         ORCH --> KAFKA
-        STT --> INFR
-        LLMGW --> INFR
-        TTSS --> INFR
+        STT -.-> TRITON
+        LLMGW -.-> TRITON
+        TTSS -.-> TRITON
         KAFKA --> ANALYTICS
         KAFKA --> BILLING
         SCHED --> ORCH

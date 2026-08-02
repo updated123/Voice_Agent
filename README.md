@@ -30,14 +30,17 @@ VOICE/
 │   ├── single-call-flow.html          MOST DETAILED FILE IN THE REPO — rendered, open directly.
 │   │                                   Complete call lifecycle (campaign -> dial -> connection ->
 │   │                                   conversation -> resolution -> post-call) PLUS a full
-│   │                                   turn-level cache/timeout/retry deep dive, all 16 services'
+│   │                                   turn-level cache/timeout/retry deep dive, all 12 services'
 │   │                                   detail cards + scaling data, and a sync-vs-async call table
 │   └── README.md                      How to render the .mmd/.drawio sources to PNG
 │
-├── services/                          16 microservices — each main.py is a comment-only spec
+├── services/                          12 microservices — each main.py is a comment-only spec
 │   ├── call-orchestrator/             Coordinates one call's pipeline turn-by-turn
 │   ├── session-manager/               Externalized call-state store (Aerospike in production)
-│   ├── llm-gateway/                   NLU / intent classification (small fine-tuned LLM in production)
+│   ├── llm-gateway/                   NLU: intent + sentiment classification + model-tier routing
+│   │                                   (small fine-tuned LLM in production; sentiment detection and
+│   │                                   model-tier routing were separate services in an earlier draft,
+│   │                                   folded in here — see docs/architecture.md)
 │   ├── tts-service/                   Streaming text-to-speech (GPU pool)
 │   ├── stt-service/                   Streaming speech-to-text (GPU pool)
 │   ├── vad-service/                   Voice activity + end-of-speech detection (CPU tier)
@@ -45,12 +48,13 @@ VOICE/
 │   ├── analytics/                     Call-outcome logging + rollup quality metrics
 │   ├── billing/                       Per-call cost metering
 │   ├── scheduler/                     Predictive dialer + live consent/DND/calling-hours gate
-│   ├── compliance/                    The FSM: mandatory disclosures, escalation triggers
-│   ├── rag-service/                   Gap-closing: retrieval for off-script policy/FAQ questions
-│   ├── tool-gateway/                  Gap-closing: named-function boundary to external systems
-│   ├── sentiment-detector/            Gap-closing: tone/emotion detection alongside intent
-│   ├── model-router/                  Gap-closing: routes turns to a small vs. large LLM tier
-│   └── inference-router/              Gap-closing: shared GPU batching/load-balancing layer
+│   ├── compliance/                    The FSM: mandatory disclosures, escalation triggers, and tool
+│   │                                   calling to external systems (folded in — see docs/architecture.md)
+│   └── rag-service/                   Gap-closing: retrieval for off-script policy/FAQ questions
+│
+│   (GPU-tier batching/load-balancing across stt-service/llm-gateway/tts-service is provided by
+│    the serving stack itself — Triton or vLLM/TensorRT-LLM — not a services/ entry; an earlier
+│    draft named it as one, "inference-router," before finding it wasn't a real standalone service.)
 │
 ├── infrastructure/                    Comment-only IaC placeholders
 │   ├── terraform/                     Networking, IAM, GPU/CPU node pools
