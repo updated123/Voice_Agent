@@ -1,0 +1,45 @@
+# =============================================================================
+# monitoring/tracing.yaml -- distributed tracing (PLACEHOLDER)
+# =============================================================================
+#
+# THE GAP THIS CLOSES
+#   prometheus.yml (this same folder) answers "is stt-service slow right
+#   now, in aggregate" -- a percentile across every call hitting it. It
+#   cannot answer "why did THIS one specific call take 3 seconds instead
+#   of the usual ~700ms." At 16 services deep (docs/architecture.md), that
+#   second question is the one that actually matters when debugging a
+#   live incident -- without tracing, the answer is "guess which of 16
+#   services was the slow hop," not "look at the one trace."
+#
+# WHAT WOULD BE CONFIGURED HERE
+#   OpenTelemetry instrumentation across every service in services/,
+#   propagating a single trace_id per call (or per turn, for the more
+#   granular case) through every hop of a turn:
+#     call-orchestrator -> vad-service -> denoiser -> stt-service ->
+#     model-router -> llm-gateway (+ sentiment-detector in parallel) ->
+#     compliance (+ rag-service / tool-gateway conditionally) ->
+#     tts-service -> back to the media server
+#   Each span records: which service, how long, cache hit or miss (ties
+#   directly into every caching decision documented across services/*),
+#   and which of the sync/async paths (architecture/single-call-flow.html)
+#   it took.
+#
+# WHY trace_id, NOT JUST session_id
+#   session_id (already threaded through every API contract in services/)
+#   identifies WHICH call. trace_id identifies WHICH TURN, and lets you
+#   see the full waterfall of hops within that one turn -- session_id
+#   alone tells you which call was slow; trace_id tells you which hop,
+#   inside which turn, of that call actually was.
+#
+# BACKEND
+#   Standard OpenTelemetry Collector, exporting to any trace
+#   backend (Jaeger, Tempo, or a managed equivalent) -- not a bespoke
+#   component, same "use the standard tool" principle as
+#   infrastructure/kubernetes and infrastructure/kafka.
+#
+# WHAT THIS DOES NOT REPLACE
+#   monitoring/prometheus.yml (aggregate metrics) and monitoring/alerts.yaml
+#   (threshold-based paging) still do their own jobs -- tracing answers
+#   "why was this one call slow," not "is the fleet healthy right now."
+#   Both are needed; neither substitutes for the other.
+# =============================================================================
