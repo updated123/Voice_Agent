@@ -17,12 +17,21 @@
 #   Stateful per call: the noise-floor estimate adapts over the duration
 #   of the utterance/session. One instance per session_id.
 #
-# API CONTRACT (planned)
-#   POST /denoise
-#     in:  { session_id, audio_b64 (float32 PCM mono), sample_rate }
-#     out: { session_id, denoised_audio_b64, sample_rate }
-#   DELETE /denoise/{session_id}   # release per-call denoiser state
-#   GET /healthz
+# API CONTRACT (planned) -- gRPC, bidirectional streaming, not REST-per-frame
+#   Same reasoning as vad-service: this is a continuous per-call audio
+#   stream, not a one-shot request, so it rides gRPC over one long-lived
+#   HTTP/2 connection instead of paying REST's per-frame connection/header
+#   cost tens of times a second. See docs/architecture.md, "Key
+#   architectural decisions" #8.
+#
+#   service DenoiserService {
+#     rpc StreamAudio(stream AudioChunk) returns (stream AudioChunk);
+#   }
+#   AudioChunk: { session_id, audio (bytes, float32 PCM mono), sample_rate }
+#   Stream close releases per-call denoiser (noise-floor estimate) state --
+#   no separate DELETE call needed.
+#   GET /healthz stays plain HTTP -- one-shot liveness check, not part of
+#   the audio stream.
 #
 # DEV BACKEND (see libs/voice_agent_core/denoiser/)
 #   SpectralGateDenoiser -- FFT spectral gating, numpy/scipy only, no

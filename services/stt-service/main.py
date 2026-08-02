@@ -13,15 +13,30 @@
 #   different throughput profile) -- it needs its own autoscaling group.
 #
 # STATE
-#   Stateless per request: transcribes one already-segmented utterance at
-#   a time. A real streaming backend would instead expose partial-result
-#   callbacks as audio arrives (see docs/latency-budget.md, stage [2]).
+#   Stateless across calls: no cross-request memory. Within one call's
+#   audio stream there is per-stream decoder state (partial hypothesis so
+#   far), but that lives in the gRPC stream itself, not in a long-lived
+#   service instance -- closing the stream discards it, same as
+#   vad-service/denoiser.
 #
-# API CONTRACT (planned)
-#   POST /transcribe
-#     in:  { session_id, audio_b64 (float32 PCM), sample_rate }
-#     out: { session_id, text, is_final, confidence }
-#   GET /healthz
+# API CONTRACT (planned) -- gRPC, bidirectional streaming, not REST-per-frame
+#   Same reasoning as vad-service/denoiser: this hop receives a continuous
+#   audio stream (post-VAD, post-denoise) for the duration of an utterance,
+#   not one discrete audio blob. Streaming lets stt-service emit partial
+#   hypotheses as audio arrives -- llm-gateway can act on a high-confidence
+#   partial before the formal "final" event, which is exactly what hides
+#   this stage's latency behind vad-service's hangover window
+#   (docs/latency-budget.md, stage [2]). A single POST /transcribe taking
+#   one complete audio blob can't expose partials at all. See
+#   docs/architecture.md, "Key architectural decisions" #8.
+#
+#   service SttService {
+#     rpc StreamTranscribe(stream AudioChunk) returns (stream Transcript);
+#   }
+#   AudioChunk: { session_id, audio (bytes, float32 PCM), sample_rate }
+#   Transcript: { session_id, text, is_final, confidence }
+#   GET /healthz stays plain HTTP -- one-shot liveness check, not part of
+#   the audio stream.
 #
 # CACHING -- NOT APPLICABLE HERE, AND WHY
 #   tts-service caches synthesized audio because its input (text) is

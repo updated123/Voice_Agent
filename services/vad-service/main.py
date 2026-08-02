@@ -19,13 +19,25 @@
 #   since the last detected speech frame. One VAD instance would be kept
 #   per session_id, sticky-routed to the call's media server in production.
 #
-# API CONTRACT (planned)
-#   POST /vad/frame
-#     in:  { session_id, frame_b64 (PCM16 mono audio frame), sample_rate,
-#            hangover_ms }
-#     out: { session_id, event }   # event: "speech" | "silence" | "end_of_speech"
-#   DELETE /vad/{session_id}       # release per-call VAD state
-#   GET /healthz
+# API CONTRACT (planned) -- gRPC, bidirectional streaming, not REST-per-frame
+#   This hop carries a continuous stream of audio frames for the life of a
+#   call, tens of times a second -- a REST call per frame would pay a new
+#   connection/header/JSON-serialization cost on every single frame, which
+#   is real, measurable latency against the ~150-250ms VAD budget
+#   (docs/latency-budget.md), not a style preference. gRPC keeps one
+#   long-lived HTTP/2 stream open per call and frames ride it as small
+#   protobuf messages. See docs/architecture.md, "Key architectural
+#   decisions" #8, and the Technology choices table.
+#
+#   service VadService {
+#     rpc StreamFrames(stream VadFrame) returns (stream VadEvent);
+#   }
+#   VadFrame:  { session_id, frame (bytes, PCM16 mono), sample_rate, hangover_ms }
+#   VadEvent:  { session_id, event }   # event: "speech" | "silence" | "end_of_speech"
+#   Stream close (client half-close or call teardown) releases per-call VAD state --
+#   no separate DELETE call needed, unlike a REST resource.
+#   GET /healthz stays plain HTTP -- it's a one-shot liveness check, not part
+#   of the audio stream, so REST is the right tool for it.
 #
 # DEV BACKEND (see libs/voice_agent_core/vad/)
 #   EnergyVAD + HangoverVAD -- energy/zero-crossing-rate based, CPU-only,
