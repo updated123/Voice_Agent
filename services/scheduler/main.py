@@ -30,6 +30,26 @@
 #     out: { borrower_id, allowed, reason }
 #   GET /healthz
 #
+# CACHING -- TWO THINGS, BOTH SHORT-TTL, NEITHER PER-BORROWER-EXPENSIVE
+#   Both cached in Aerospike, same choice as every other cache in this
+#   system, both with a short TTL (minutes, not hours) since both reflect
+#   real-world state that does change, just not every second:
+#
+#   1. Consent/DNC/opt-out status. The compliance gate must be "live" (see
+#      above) -- but "live" means "an opt-out registered a minute ago is
+#      honored," not "query the source-of-truth fresh for every single
+#      dial." At ~37,000 dials/sec peak, a per-dial fresh lookup against
+#      the account/consent system is real, avoidable load. Cache each
+#      borrower's status with a short TTL; a borrower who opts out mid-
+#      campaign is still caught within one cache window, not indefinitely.
+#
+#   2. Carrier number-pool reputation. Which caller-ID numbers are
+#      currently healthy vs. flagged as spam (docs/scaling.md, on why
+#      number-pool reputation is a first-class scaling concern) doesn't
+#      change second-to-second either. Cache "is number X healthy for
+#      area code Y" with a moderate TTL instead of querying the carrier
+#      routing layer fresh for every dial.
+#
 # OUT OF SCOPE FOR THIS REPO
 #   Real AMD and real dial pacing against live carrier trunk capacity --
 #   both require a live telephony stack. See docs/future-improvements.md.

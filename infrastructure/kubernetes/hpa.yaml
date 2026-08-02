@@ -13,4 +13,17 @@
 #   - llm-gateway:       ~5,556 GPU replicas at peak
 #   - tts-service:      ~11,111 GPU replicas at peak
 #   - call-orchestrator: ~1 lightweight replica per concurrent call (~2.2M)
+#
+# MINIMUM REPLICAS -- WARM POOLS, NEVER SCALE-TO-ZERO FOR GPU-TIER SERVICES
+#   The scale-down floor for stt-service/llm-gateway/tts-service should
+#   never reach zero, even during the lowest-traffic hours (see
+#   docs/scaling.md's day/night traffic curve). Loading model weights onto
+#   a GPU is the expensive, one-time cost per replica -- scaling to zero
+#   and back means paying that cold-start cost on the next traffic ramp,
+#   which shows up directly as added latency on whichever calls land
+#   during that ramp (docs/latency-budget.md). Each GPU-tier service's
+#   HPA config should set a minReplicas floor sized to the *lowest*
+#   expected concurrent-active-call count during the legal calling window
+#   (docs/scaling.md), not to zero, trading a small amount of idle-GPU
+#   cost during quiet periods for consistent latency at all times.
 # =============================================================================
