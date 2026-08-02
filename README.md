@@ -27,7 +27,12 @@ VOICE/
 │   ├── sequence-diagram.mmd           One call turn, traced across every service boundary
 │   ├── deployment-diagram.mmd         Per-region infra topology
 │   ├── call-flow.mmd                  The compliance FSM as a state diagram
-│   └── README.md                      How to render these to PNG
+│   ├── single-call-flow.html          MOST DETAILED FILE IN THE REPO — rendered, open directly.
+│   │                                   Complete call lifecycle (campaign -> dial -> connection ->
+│   │                                   conversation -> resolution -> post-call) PLUS a full
+│   │                                   turn-level cache/timeout/retry deep dive, all 16 services'
+│   │                                   detail cards + scaling data, and a sync-vs-async call table
+│   └── README.md                      How to render the .mmd/.drawio sources to PNG
 │
 ├── services/                          16 microservices — each main.py is a comment-only spec
 │   ├── call-orchestrator/             Coordinates one call's pipeline turn-by-turn
@@ -49,10 +54,12 @@ VOICE/
 │
 ├── infrastructure/                    Comment-only IaC placeholders
 │   ├── terraform/                     Networking, IAM, GPU/CPU node pools
-│   ├── kubernetes/                    Namespaces, Deployments, HPA autoscaling policies
+│   ├── kubernetes/                    Namespaces, Deployments, HPA autoscaling (incl. warm-pool minReplicas)
 │   ├── aerospike/                     session-manager's production backend (chosen over Redis for p99 latency)
 │   ├── redis/                         session-manager's documented alternative backend
 │   ├── kafka/                         Event backbone for analytics/billing
+│   ├── object-storage/                Call recordings/transcripts, encrypted at rest (closes a real gap —
+│   │                                   docs/security.md required this with no store ever defined for it)
 │   └── nginx/                         Edge routing / TLS termination
 │
 ├── configs/                           Comment-only config placeholders
@@ -74,7 +81,8 @@ VOICE/
 │                                       wake-word/voice-biometrics (11 categories, nothing assumed).
 │
 ├── monitoring/                        Comment-only observability placeholders
-│   ├── prometheus.yml
+│   ├── prometheus.yml                 Aggregate metrics — "is the fleet healthy right now"
+│   ├── tracing.yaml                   Distributed tracing (OpenTelemetry) — "why was THIS call slow"
 │   ├── alerts.yaml
 │   └── dashboards/
 │
@@ -95,7 +103,7 @@ VOICE/
 1. [docs/architecture.md](docs/architecture.md) — start here: problem framing, system diagram, service responsibilities, tech-stack choices, audio pipeline, failure domains.
 2. [docs/scaling.md](docs/scaling.md) — how many servers/GPUs/carrier trunks 1B calls/day actually requires.
 3. [docs/cost-analysis.md](docs/cost-analysis.md) — $/call, $/day, $/month, and the levers that move it (the biggest one isn't GPUs).
-4. [docs/latency-budget.md](docs/latency-budget.md) — why the pipeline targets ~500-700ms turn latency, not 2s.
+4. [docs/latency-budget.md](docs/latency-budget.md) — the ~500-700ms design target, and the honest gap vs. the 1.5-3s real-world industry median it's designed to close.
 5. [docs/monitoring.md](docs/monitoring.md) — how quality is measured and gated.
 6. [docs/security.md](docs/security.md) — regulatory compliance + information security, enforced structurally.
 7. [docs/deployment.md](docs/deployment.md) — environments, rollout strategy, rollback.
@@ -114,7 +122,7 @@ VOICE/
 | Total infra cost/day | ~$21.4M (answer-rate-adjusted) / ~$67.2M (conservative) |
 | Cost per call | ~$0.02–0.07 |
 | **Dominant cost driver** | **Human escalation labor — ~10x compute+telephony combined** |
-| P50 turn latency (bot response after user stops talking) | ~500-700ms |
+| P50 turn latency (bot response after user stops talking) | ~500-700ms design target (aspirational — real cascaded pipelines typically run 1.5-3s; see [docs/latency-budget.md](docs/latency-budget.md)) |
 
 **Honest caveat, stated up front:** 1B calls/day is larger than the entire outbound call volume of most national telecom networks. The PSTN/carrier termination capacity (not compute) is the real bottleneck — no single carrier can originate 2.2M concurrent calls, so this requires **multi-carrier, multi-region trunking** treated as a first-class scaling dimension, not an afterthought. Details in [docs/architecture.md](docs/architecture.md) and [docs/scaling.md](docs/scaling.md).
 

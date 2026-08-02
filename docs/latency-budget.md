@@ -4,7 +4,9 @@
 
 Loan collection calls are an adversarial conversational context — the borrower frequently doesn't want to be on this call. Human conversational turn-taking gaps average roughly 200-300ms; anything the bot does much slower reads as "laggy" or "clearly a bot," which measurably increases hang-up rate and reduces containment. Latency is tracked as a primary quality metric alongside WER and task-success-rate (see [monitoring.md](monitoring.md)), not a secondary performance concern.
 
-## Target: end-of-speech to start-of-bot-audio in ~500-700ms (P50)
+## Target: end-of-speech to start-of-bot-audio in ~500-700ms (P50) — best-case, not the current industry median
+
+**This target is aspirational, and stating that plainly matters more than the number itself.** Real production cascaded voice-agent pipelines typically run 1.5-3 seconds end-to-end, not 500-700ms — and vendor-marketed latency figures are routinely 2-4x optimistic versus independently measured production numbers (e.g., Deepgram markets sub-300ms streaming STT; independent benchmarks measured a real median time-to-first-token of ~992ms for the same tier). The 500-700ms figure below is what this pipeline is *designed to achieve* if every stage hits its per-hop target simultaneously — it is the number to build toward and measure against, not a number already validated in production, since this repo has no running production traffic to validate it with. Treat the caching work throughout `services/` (intent cache, compliance cache, TTS phrase cache) as exactly what closes the gap between the two — without it, the realistic 1.5-3s figure is the one to plan around.
 
 ```
 Borrower stops talking
