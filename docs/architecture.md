@@ -60,9 +60,26 @@ flowchart LR
 | Call-flow / compliance | `services/compliance` | The FSM: mandatory disclosures, negotiation flow, escalation triggers — stateless, pure function of (state, intent). |
 | TTS | `services/tts-service` | Streaming text-to-speech, GPU pool. |
 | Orchestration | `services/call-orchestrator` | Coordinates one call's pipeline turn-by-turn across every other service. |
-| Call state | `services/session-manager` | Externalized state store (Redis in production) — lets every other service stay stateless. |
+| Call state | `services/session-manager` | Externalized state store (Aerospike in production, Redis Cluster documented as the alternative) — lets every other service stay stateless. |
 | Outcome logging | `services/analytics` | Event logging + rollup quality metrics (see [monitoring.md](monitoring.md)). |
 | Cost metering | `services/billing` | Per-call cost tracking against the fleet-level cost model (see [cost-analysis.md](cost-analysis.md)). |
+| Policy/FAQ retrieval | `services/rag-service` | Answers off-script questions outside the fixed intent set by retrieving from a vetted knowledge base — grounds `compliance`'s response, never bypasses it. |
+| Tool calling | `services/tool-gateway` | The single named-function boundary to external systems (loan servicing backend, CRM) — the bot states a balance or schedules a payment only through a registered tool call, never by inventing a number. |
+| Sentiment detection | `services/sentiment-detector` | Tone/emotion classification from audio (calm/frustrated/distressed/angry), feeding `compliance` alongside intent so response strategy — not just content — can adapt. |
+| Model routing | `services/model-router` | Routes each turn to a small/fast or larger/capable LLM tier based on utterance complexity, rather than fixing one tier for the whole deployment. |
+| Inference routing | `services/inference-router` | Shared batching/load-balancing/model-version-routing layer in front of the GPU pools backing `stt-service`/`llm-gateway`/`tts-service`, instead of each reimplementing it. |
+
+## Components added to close identified gaps
+
+The five services above were not in the original design — they were identified by auditing this architecture against a standard enterprise-conversational-AI component checklist and finding real gaps, not just naming mismatches. Each is a comment-only specification (`services/*/main.py`) describing responsibility, logic/flow, and API contract, consistent with every other service in this repo — none are implemented. See each file for the detailed reasoning; in short:
+
+- **`rag-service`** exists because off-script questions previously had no path except re-prompt-until-give-up or unnecessary escalation.
+- **`tool-gateway`** formalizes what was previously an informal "compliance calls the loan servicing backend" narrative into a named, auditable, allow-listed function-call boundary.
+- **`sentiment-detector`** closes the gap between *keyword-based* distress detection (already in `llm-gateway`'s intent set) and genuine *tone-based* emotion detection — an agitated borrower who never says a trigger phrase currently gets no different treatment than a calm one.
+- **`model-router`** turns "pick one LLM tier for the whole deployment" into a per-turn decision, which is where the real savings are, since most turns in a scripted collections flow are the easy case.
+- **`inference-router`** names the batching/load-balancing/version-routing layer that was previously implied to exist "inside" each GPU-tier service rather than shared across all three.
+
+A sixth candidate, **voice-biometric fraud detection**, was considered and deliberately cut rather than added — it imports an inbound-call threat model (verify an unknown caller before granting account access) that doesn't map onto this outbound-only system, where the callee's identity is already known and there's no high-value action for an impersonator to gain. See [future-improvements.md](future-improvements.md) for the full reasoning.
 
 ## Key architectural decisions
 
@@ -70,7 +87,7 @@ flowchart LR
 2. **FSM-first `compliance` service, `llm-gateway` as a component feeding it — not the other way around.** Guarantees compliance-critical disclosures happen every time, bounds response latency (short, templated generations vs. open-ended chat), and bounds cost (fewer, shorter LLM calls). Full justification in the "Technology choices" section below.
 3. **Regional, multi-carrier telephony from day one.** The actual scaling bottleneck at 1B calls/day — bolting it on later doesn't work because number reputation and carrier relationships take months to build.
 4. **Streaming everywhere.** Every hop (ASR, LLM, TTS) is streaming, not request/response batch, because turn-taking latency is a quality-critical metric in an adversarial conversational context (see [latency-budget.md](latency-budget.md)).
-5. **Stateless, horizontally-scalable services; call state lives in `session-manager` (Redis in production), keyed by call-id.** Any service instance can crash and be replaced without losing the call, and autoscaling is a simple function of adding more identical replicas.
+5. **Stateless, horizontally-scalable services; call state lives in `session-manager` (Aerospike in production, keyed by call-id).** Any service instance can crash and be replaced without losing the call, and autoscaling is a simple function of adding more identical replicas. Aerospike was picked over Redis Cluster after comparing both against this system's actual peak load — see `services/session-manager/main.py` for the p99-latency reasoning.
 
 ## Technology choices
 
@@ -84,7 +101,7 @@ Every choice is evaluated on **cost at 1B calls/day**, **latency**, and **qualit
 | NLU + dialogue generation | Small fine-tuned model (1-3B params), served via vLLM/TensorRT-LLM, wrapped by a deterministic FSM | Narrow domain — small model matches large-model quality here at 10-20x lower latency/cost; FSM guarantees required disclosures regardless of model output | Frontier LLM per turn — 50-100x the cost, 300-800ms+ TTFT under load (blows the latency budget), and cannot *guarantee* compliance behavior |
 | TTS | Streaming neural TTS (Kokoro-82M-class / Piper) | Low first-byte latency, self-hostable | ElevenLabs/OpenAI TTS APIs — more expressive, but per-minute pricing at this volume is one of the largest cost items |
 | Telephony / media server | FreeSWITCH or Jambonz, multi-carrier SIP trunking | Open-source, proven at high concurrency, full control over edge VAD/denoise | Fully-managed platforms (Twilio Voice) — right choice below ~1-5M calls/day, cost-prohibitive well before 1B/day |
-| Orchestration / state | Stateless services + Redis, Kubernetes autoscaling | Standard horizontal-scaling pattern; a crashed worker doesn't lose the call | Sticky, stateful workers — simpler, but a crash loses the call and complicates autoscaling |
+| Orchestration / state | Stateless services + Aerospike, Kubernetes autoscaling | Both Aerospike and Redis Cluster clear the required ~370K ops/sec; Aerospike's 17-48% lower p99 latency wins given the tight per-turn latency budget | Redis Cluster — comparable throughput and a more mature ecosystem, documented as the fallback if that's weighted higher; sticky, stateful workers — simpler than either, but a crash loses the call |
 | Dialer | Custom predictive dialer with AMD + live consent/DND gating | Wasting bot capacity on voicemail/no-answer is one of the largest hidden costs at scale | Simple round-robin dialing — wastes 60-80% of pipeline capacity on non-connects |
 
 ### Why FSM-wrapped LLM, not a free-form agent (the most important decision)

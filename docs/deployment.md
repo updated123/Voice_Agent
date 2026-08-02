@@ -12,7 +12,7 @@ This describes how the `services/` fleet and `infrastructure/` would be provisio
 
 1. **`infrastructure/terraform`** — networking (VPCs, regional peering near carrier PoPs), IAM roles per service, GPU/CPU node pools (`gpu-pool.tf`), remote state backend.
 2. **`infrastructure/kubernetes`** — namespace + resource quotas, then Deployments/Services for every `services/*` component, then `hpa.yaml` autoscaling policies wired to the concurrent-active-call metrics `services/analytics` publishes (not raw CPU%, per [architecture.md](architecture.md)'s backpressure principle).
-3. **`infrastructure/redis`** — Redis Cluster for `services/session-manager`, provisioned before any stateful service comes up.
+3. **`infrastructure/aerospike`** — Aerospike for `services/session-manager` (see `infrastructure/redis` for the documented alternative), provisioned before any stateful service comes up.
 4. **`infrastructure/kafka`** — event backbone for `services/analytics` and `services/billing`, provisioned before `services/call-orchestrator` starts producing events.
 5. **`infrastructure/nginx`** — edge routing/TLS termination, brought up last, once every backend service is health-check-passing.
 

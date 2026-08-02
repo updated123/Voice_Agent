@@ -21,6 +21,32 @@ Honest accounting of what this design simplifies or leaves out, and what real ne
 6. **Multilingual expansion** — once English-only is validated end-to-end, extend ASR/TTS/NLU to the actual target languages, with per-language quality tracking from day one rather than bolted on later.
 7. **Real AMD + dial-pacing implementation** in `services/scheduler`, once a carrier relationship exists to test against.
 
+## Considered and cut: voice-biometric fraud detection
+
+A `fraud-detection` service (voice-biometric identity verification against an enrolled voiceprint) was added
+during a gap audit against a standard enterprise-conversational-AI checklist, then removed after closer
+scrutiny. Worth recording why, since the reasoning generalizes beyond this one service.
+
+**The mistake:** voice-biometric fraud detection is a real, necessary pattern for *inbound* calls — a bank's
+customer-service line, where an unknown caller can claim any identity and the system must verify them before
+granting account access (wire transfers, password resets). That threat model doesn't transfer to this system:
+
+- This is an **outbound** dialer calling a **known number tied to a known account** — not an unknown inbound
+  caller claiming an identity.
+- "Wrong person answered" is already handled by the `wrong_number` intent/FSM branch.
+- "Reasonable assurance before disclosing debt info" is already handled by the knowledge-based
+  `identity_verification` challenge (confirm last 4 digits / DOB), which is proportionate to what's actually
+  disclosed — an amount and a due date, not full account access.
+- Critically, **there's no high-value action for an impersonator to gain by succeeding.** Negotiating a
+  payment plan or promising to pay doesn't move money or grant access the way an inbound banking call's
+  password reset or wire transfer does — so the attack has little incentive behind it.
+
+**Where it might still be worth revisiting:** very large balances, demographics with elevated elder-fraud
+risk, or jurisdictions with stricter identity-assurance requirements before any debt disclosure. If any of
+those apply to a real deployment, voice-biometric verification (Azure Speaker Recognition, Pindrop, Nuance
+Gatekeeper, Veridas, ID R&D — priced in `benchmarks/cost-latency-calculator.html`) is worth reconsidering
+as an optional, risk-tiered addition — not a default requirement for every call.
+
 ## Deliberately out of scope for this exercise
 
 - The loan servicing/accounting backend itself (treated as an external dependency the voice agent calls into).

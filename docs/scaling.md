@@ -62,6 +62,6 @@ Applying the answer-rate correction (AMD filters to 30% of dials reaching the fu
 ## Service-level scaling notes
 
 - `call-orchestrator`: one lightweight, stateless replica per concurrently active call (~2.2M at peak) — the highest-replica-count service in the system by design, since it holds no state itself.
-- `session-manager`: backed by Redis Cluster in production, sharded by call-id hash slot — a single instance cannot hold ~2.2M live call records with acceptable latency.
+- `session-manager`: backed by Aerospike in production (Redis Cluster documented as the alternative), sharded by call-id — a single instance cannot hold ~2.2M live call records with acceptable latency.
 - `scheduler`: must itself be horizontally sharded (e.g. by campaign/region) to evaluate ~37,000 dial-decisions/sec at peak.
 - `analytics`/`billing`: decoupled from the synchronous per-turn path via a Kafka event backbone (see [../infrastructure/kafka/](../infrastructure/kafka/)) so neither adds latency to a live call.

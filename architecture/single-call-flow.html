@@ -119,16 +119,186 @@
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">Single call, one turn — engineering-level detail</p>
-  <h1>Where every cache check, timeout, and service call happens</h1>
+  <p class="eyebrow">Two levels of detail: the whole call, then one turn</p>
+  <h1>How a complete call works, start to finish — then every cache check inside it</h1>
   <p class="sub">
-    Traces one borrower turn all the way through the pipeline — not the conceptual architecture, the actual
-    decision points: where state is read from a local cache vs. fetched over the network, where a GPU call
-    is skipped because the answer was already cached, where a timeout triggers a retry vs. a fallback, and
-    where the escalation path permanently diverges from the rest of the call. Matches
-    <code style="font-family:var(--mono); font-size:12.5px;">libs/voice_agent_core/orchestrator/pipeline.py</code>'s
-    real sequence, with the caching optimizations from the earlier chat walkthrough layered in.
+    This page has two parts. <b>Part 1</b> is the complete call lifecycle — campaign selection, the live
+    consent/DND/calling-hours gate, dialing, answering-machine detection, the opening disclosure, every exit
+    a call can take (promise-to-pay, escalation, wrong number, callback), and what happens after the call
+    ends. <b>Part 2</b> is the existing turn-level deep dive — one borrower utterance traced through every
+    cache check, timeout, and service call inside the "TURN LOOP" box that Part 1 treats as a single step.
   </p>
+
+  <div class="info-section" style="margin-top:6px;">
+    <h2>Part 1 — the complete call lifecycle</h2>
+    <p class="section-desc">
+      Every phase a call passes through, from picking an account to dial through the async post-call
+      analytics/billing/QA loop. The "TURN LOOP" box in Phase 3 is intentionally collapsed here — it repeats
+      once per borrower utterance and is unpacked in full in Part 2, below.
+    </p>
+    <div class="diagram-card">
+<svg viewBox="0 0 1780 2020" width="1780" height="2020" xmlns="http://www.w3.org/2000/svg" font-family="var(--sans)">
+
+<defs>
+  <marker id="arrow-lc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="var(--edge)"></path>
+  </marker>
+  <marker id="arrow-amber-lc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"></path>
+  </marker>
+</defs>
+
+<path d="M560.0,140.0 L560.0,180.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,244.0 L560.0,284.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,380.0 L560.0,420.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M680.0,332.0 L720.0,332.0 L720.0,325.0 L760.0,325.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber-lc)"></path>
+<path d="M560.0,484.0 L560.0,524.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,588.0 L560.0,684.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,780.0 L560.0,820.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M680.0,732.0 L720.0,732.0 L720.0,725.0 L760.0,725.0" fill="none" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrow-amber-lc)"></path>
+<path d="M560.0,884.0 L560.0,934.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,998.0 L560.0,1104.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1194.0 L560.0,1224.0 L200.0,1224.0 L200.0,1290.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1194.0 L560.0,1224.0 L560.0,1224.0 L560.0,1290.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1194.0 L560.0,1224.0 L920.0,1224.0 L920.0,1290.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1194.0 L560.0,1224.0 L1280.0,1224.0 L1280.0,1290.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M200.0,1374.0 L200.0,1440.0 L560.0,1440.0 L560.0,1470.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1374.0 L560.0,1440.0 L560.0,1440.0 L560.0,1470.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M920.0,1374.0 L920.0,1440.0 L560.0,1440.0 L560.0,1470.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M1280.0,1374.0 L1280.0,1440.0 L560.0,1440.0 L560.0,1470.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1534.0 L560.0,1584.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1648.0 L560.0,1672.0 L360.0,1672.0 L360.0,1698.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1648.0 L560.0,1672.0 L760.0,1672.0 L760.0,1698.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M360.0,1772.0 L360.0,1788.0 L560.0,1788.0 L560.0,1812.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M760.0,1772.0 L760.0,1788.0 L560.0,1788.0 L560.0,1812.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<path d="M560.0,1876.0 L560.0,1926.0" fill="none" stroke="var(--edge)" stroke-width="1.6" marker-end="url(#arrow-lc)"></path>
+<rect x="542.1" y="391.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="404.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">pass</text>
+<rect x="672.1" y="314.0" width="35.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="690.0" y="327.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">fail</text>
+<rect x="545.2" y="791.0" width="29.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="804.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">yes</text>
+<rect x="678.3" y="714.0" width="23.4" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="690.0" y="727.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">no</text>
+<rect x="331.1" y="1207.0" width="97.8" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="380.0" y="1220.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">promise_to_pay</text>
+<rect x="529.7" y="1207.0" width="60.6" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="560.0" y="1220.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">escalate</text>
+<rect x="697.3" y="1207.0" width="85.4" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="740.0" y="1220.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">wrong_number</text>
+<rect x="864.9" y="1207.0" width="110.2" height="18" rx="4" fill="var(--edge-label-bg)" stroke="var(--border)" stroke-width="1"></rect><text x="920.0" y="1220.0" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--text-dim)">callback_request</text>
+<line x1="40" y1="88.0" x2="1740" y2="88.0" stroke="var(--border)" stroke-width="1.4"></line>
+<text x="40" y="58.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 1 — CAMPAIGN &amp; DIAL</text>
+<rect x="400.0" y="86.0" width="320" height="54" rx="27.0" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13.5" font-weight="700" fill="var(--pill-text)" font-family="var(--sans)"><tspan x="560" y="113.0">Loan Servicing Backend: pulls overdue account</tspan></text>
+<rect x="400.0" y="180.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="212.0">scheduler: Campaign Builder selects next account to dial</tspan></text>
+<polygon points="560,284 680.0,332.0 560,380 440.0,332.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="323.2">consent / DND /</tspan><tspan x="560" y="340.8">calling-hours gate pass?</tspan></text>
+<rect x="760.0" y="288.0" width="320" height="74" rx="10" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="316.2">Skip this dial, log reason</tspan><tspan x="920" y="333.8">(opted out / DNC / outside window)</tspan></text>
+<rect x="400.0" y="420.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="443.2">Carrier Routing Layer: select trunk + caller-ID</tspan><tspan x="560" y="460.8">(multi-carrier, reputation-aware)</tspan></text>
+<rect x="400.0" y="524.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="556.0">PSTN: dial placed</tspan></text>
+<line x1="40" y1="686.0" x2="1740" y2="686.0" stroke="var(--border)" stroke-width="1.4"></line>
+<text x="40" y="656.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 2 — CONNECTION</text>
+<polygon points="560,684 680.0,732.0 560,780 440.0,732.0" fill="var(--panel-2)" stroke="var(--accent)" stroke-width="1.6"></polygon>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="723.2">Answered?</tspan><tspan x="560" y="740.8">(AMD detects voicemail/no-answer)</tspan></text>
+<rect x="760.0" y="688.0" width="320" height="74" rx="10" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="716.2">Log no-answer/voicemail outcome →</tspan><tspan x="920" y="733.8">requeue for a later retry attempt</tspan></text>
+<rect x="400.0" y="820.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="843.2">Media Server: RTP established;</tspan><tspan x="560" y="860.8">session-manager creates new session record</tspan></text>
+<rect x="400.0" y="934.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="957.2">call-orchestrator: opening_turn() → compliance's</tspan><tspan x="560" y="974.8">fixed disclosure → TTS → streamed to borrower</tspan></text>
+<line x1="40" y1="1106.0" x2="1740" y2="1106.0" stroke="var(--border)" stroke-width="1.4"></line>
+<text x="40" y="1076.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 3 — CONVERSATION</text>
+<rect x="400.0" y="1104.0" width="320" height="90" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<line x1="409.0" y1="1104.0" x2="409.0" y2="1194.0" stroke="var(--accent)" stroke-width="1.6"></line>
+<line x1="711.0" y1="1104.0" x2="711.0" y2="1194.0" stroke="var(--accent)" stroke-width="1.6"></line>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1131.5">TURN LOOP — repeats once per borrower utterance</tspan><tspan x="560" y="1149.0">(full cache/timeout/retry detail in the diagram below:</tspan><tspan x="560" y="1166.5">VAD → denoise → STT → intent → compliance → TTS)</tspan></text>
+<line x1="40" y1="1292.0" x2="1740" y2="1292.0" stroke="var(--border)" stroke-width="1.4"></line>
+<text x="40" y="1262.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 4 — RESOLUTION (one of several exits from the turn loop)</text>
+<rect x="50.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="200" y="1323.2">Promise-to-pay: tool-gateway schedulePayment()</tspan><tspan x="200" y="1340.8">+ updateCRM() → closing script played</tspan></text>
+<rect x="410.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1323.2">Escalation: routed to Human Agent Queue,</tspan><tspan x="560" y="1340.8">full transcript/context handed off</tspan></text>
+<rect x="770.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="920" y="1323.2">Wrong number: polite close,</tspan><tspan x="920" y="1340.8">number flagged for list removal</tspan></text>
+<rect x="1130.0" y="1290.0" width="300" height="84" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="1280" y="1323.2">Callback requested: callback time scheduled,</tspan><tspan x="1280" y="1340.8">requeued for a future dial</tspan></text>
+<line x1="40" y1="1472.0" x2="1740" y2="1472.0" stroke="var(--border)" stroke-width="1.4"></line>
+<text x="40" y="1442.0" font-size="13.5" font-weight="700" letter-spacing="0.06em" fill="var(--accent)" font-family="var(--mono)">PHASE 5 — POST-CALL (every path above funnels here)</text>
+<rect x="400.0" y="1470.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1493.2">session-manager: final PATCH</tspan><tspan x="560" y="1510.8">(call_ended=true, outcome recorded)</tspan></text>
+<rect x="400.0" y="1584.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1607.2">Emit call_ended event → Kafka</tspan><tspan x="560" y="1624.8">(call.events topic)</tspan></text>
+<rect x="220.0" y="1698.0" width="280" height="74" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="360" y="1726.2">analytics: rollup metrics</tspan><tspan x="360" y="1743.8">(containment, escalation rate, WER)</tspan></text>
+<rect x="620.0" y="1698.0" width="280" height="74" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="760" y="1726.2">billing: per-call cost computed</tspan><tspan x="760" y="1743.8">(compute + telephony + human)</tspan></text>
+<rect x="400.0" y="1812.0" width="320" height="64" rx="10" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="var(--text)" font-family="var(--sans)"><tspan x="560" y="1835.2">If escalated: escalated-call review loop</tspan><tspan x="560" y="1852.8">(docs/monitoring.md) — did it need to escalate?</tspan></text>
+<rect x="400.0" y="1926.0" width="320" height="54" rx="27.0" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.6"></rect>
+<text text-anchor="middle" dominant-baseline="middle" font-size="13.5" font-weight="700" fill="var(--pill-text)" font-family="var(--sans)"><tspan x="560" y="1953.0">Call fully closed</tspan></text>
+</svg>
+
+    </div>
+
+    <div class="table-card" style="margin-top:16px; padding: 18px 22px;">
+      <p class="section-title" style="margin-bottom:10px;">Phase-by-phase walkthrough</p>
+
+      <p style="font-size:13px; line-height:1.6; margin:0 0 12px;"><b>Phase 1 — Campaign &amp; dial.</b>
+      <code>scheduler</code> pulls the next overdue account from the loan servicing backend and checks the
+      <b>live</b> consent/DND/calling-hours gate immediately before dialing — not a once-a-day batch filter,
+      since an opt-out registered mid-campaign must take effect within the same second (see
+      <code>docs/security.md</code>). A failed gate check ends the attempt right here — no carrier is ever
+      contacted. A passed check goes to the Carrier Routing Layer, which picks a trunk and an
+      appropriately reputation-managed caller-ID number from a rotated pool (see <code>docs/scaling.md</code>
+      on why number-reputation management is a first-class scaling concern, not an afterthought).</p>
+
+      <p style="font-size:13px; line-height:1.6; margin:0 0 12px;"><b>Phase 2 — Connection.</b> The PSTN
+      dial either goes unanswered (voicemail, no-answer, or AMD detects an answering machine) — logged and
+      requeued for a later retry, at zero AI-compute cost since nothing downstream of the carrier is ever
+      touched — or connects, at which point the media server establishes the RTP stream and
+      <code>session-manager</code> creates a fresh session record. <code>call-orchestrator</code> immediately
+      fires the opening turn: <code>compliance</code>'s fixed, legally-reviewed disclosure script, streamed
+      out via <code>tts-service</code> before any borrower speech has happened.</p>
+
+      <p style="font-size:13px; line-height:1.6; margin:0 0 12px;"><b>Phase 3 — Conversation.</b> Every
+      subsequent borrower utterance runs through the same loop: VAD detects end-of-speech, denoiser cleans
+      the audio, <code>stt-service</code> transcribes it, <code>llm-gateway</code> classifies intent (cache
+      permitting), <code>compliance</code> decides the next state and response (cache permitting), and
+      <code>tts-service</code> streams the reply back — with continuous barge-in monitoring throughout. This
+      loop is what Part 2 of this page unpacks completely; here it's one box because it can repeat anywhere
+      from one turn (an immediate wrong-number or escalation) to a dozen (a long negotiation).</p>
+
+      <p style="font-size:13px; line-height:1.6; margin:0 0 12px;"><b>Phase 4 — Resolution.</b> The turn loop
+      exits through exactly one of four doors, decided by <code>compliance</code>'s FSM, never by the LLM
+      free-forming an ending: <b>promise-to-pay</b> (<code>tool-gateway</code> calls
+      <code>schedulePayment()</code> and <code>updateCRM()</code> before the closing script plays),
+      <b>escalation</b> (full transcript and context handed to a human agent — triggered by an explicit
+      request, a dispute, or detected distress, and this path is reachable from <i>any</i> state in the FSM,
+      not just from within the turn loop's normal flow), <b>wrong number</b> (polite close, number flagged
+      for list removal), or <b>callback requested</b> (a time is scheduled and the account is requeued for a
+      future dial — back into Phase 1 on a later day).</p>
+
+      <p style="font-size:13px; line-height:1.6; margin:0;"><b>Phase 5 — Post-call.</b> Every resolution path
+      funnels into the same ending: <code>session-manager</code> writes the final state
+      (<code>call_ended=true</code>, outcome recorded), and <code>call-orchestrator</code> emits a
+      <code>call_ended</code> event to Kafka's <code>call.events</code> topic — asynchronously, so none of
+      this can add latency to a call that has, by this point, already ended for the borrower.
+      <code>analytics</code> and <code>billing</code> consume that event independently to update rollup
+      metrics (containment rate, escalation rate, WER) and per-call cost. Escalated calls specifically feed
+      the escalated-call review loop (<code>docs/monitoring.md</code>) — was the escalation actually
+      necessary, or is there a gap in the FSM/model that a future update should close?</p>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>Part 2 — one turn, in full engineering detail</h2>
+    <p class="section-desc">
+      Everything below unpacks the single "TURN LOOP" box from Phase 3 above — where state is read from a
+      local cache vs. fetched over the network, where a GPU call is skipped because the answer was already
+      cached, where a timeout triggers a retry vs. a fallback, and where the escalation path permanently
+      diverges. Matches
+      <code style="font-family:var(--mono); font-size:12.5px;">libs/voice_agent_core/orchestrator/pipeline.py</code>'s
+      real sequence.
+    </p>
+  </div>
 
   <div class="legend-panel">
     <div class="legend-item"><span class="swatch" style="background:var(--accent); border-color:var(--accent);"></span>Start / end of turn</div>
@@ -258,12 +428,16 @@
   </div>
 
   <div class="info-section">
-    <h2>11 services — what each one is, and how it scales</h2>
+    <h2>16 services — what each one is, and how it scales</h2>
     <p class="section-desc">
       One service per pipeline concern (see <code>services/</code>). Scaling tier follows
       <code>docs/scaling.md</code>: GPU-tier services scale with concurrently-<em>speaking</em> calls (not
       raw connected calls, since VAD gates silence out before it reaches them); CPU-tier services scale with
       total concurrent calls; the coordinator scales 1:1 with concurrent calls since it holds no state itself.
+      The last 5 rows (12-16) were added after auditing this design against a standard enterprise-conversational-AI
+      checklist and finding real gaps — see <code>docs/architecture.md</code>, "Components added to close identified gaps."
+      (A sixth candidate, voice-biometric fraud detection, was considered and cut — see
+      <code>docs/future-improvements.md</code>.)
     </p>
     <div class="table-card">
       <table>
@@ -276,10 +450,15 @@
           <tr><td class="num">5</td><td class="svc">llm-gateway</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">NLU / intent classification (small fine-tuned model in production).</td><td class="dim">Scales with turns/sec, not raw concurrency — short bursty calls, not held connections.</td><td class="num">~5.5K GPUs</td></tr>
           <tr><td class="num">6</td><td class="svc">tts-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Streaming text-to-speech.</td><td class="dim">Scales with concurrently-<em>bot-speaking</em> calls.</td><td class="num">~11K GPUs</td></tr>
           <tr><td class="num">7</td><td class="svc">compliance</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The FSM: mandatory disclosures, negotiation flow, escalation triggers.</td><td class="dim">Pure function of (state, intent) — no GPU, no session affinity, scales trivially horizontally.</td><td class="num">CPU-cheap</td></tr>
-          <tr><td class="num">8</td><td class="svc">session-manager</td><td><span class="pill-tag tier-cpu">stateful store</span></td><td class="dim">Externalized call-state (current FSM state, slots, transcript log).</td><td class="dim">Redis Cluster in production, sharded by call-id hash slot — a single instance can't hold ~2.2M live records.</td><td class="num">Sharded cluster</td></tr>
+          <tr><td class="num">8</td><td class="svc">session-manager</td><td><span class="pill-tag tier-cpu">stateful store</span></td><td class="dim">Externalized call-state (current FSM state, slots, transcript log).</td><td class="dim">Aerospike in production (Redis Cluster documented as the alternative), sharded by call-id — a single instance can't hold ~2.2M live records.</td><td class="num">Sharded cluster</td></tr>
           <tr><td class="num">9</td><td class="svc">scheduler</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Predictive dialer + live consent/DND/calling-hours gate.</td><td class="dim">Sharded by campaign/region — a single instance can't evaluate ~37K dial-decisions/sec at peak.</td><td class="num">Sharded</td></tr>
           <tr><td class="num">10</td><td class="svc">analytics</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Call-outcome logging + rollup quality metrics.</td><td class="dim">Decoupled via Kafka consumer group — scales with event backlog, not call concurrency.</td><td class="num">Kafka consumers</td></tr>
           <tr><td class="num">11</td><td class="svc">billing</td><td><span class="pill-tag tier-cpu">CPU</span></td><td class="dim">Per-call cost metering.</td><td class="dim">Same Kafka-decoupled pattern as analytics.</td><td class="num">Kafka consumers</td></tr>
+          <tr><td class="num">12</td><td class="svc">rag-service</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Retrieves policy/FAQ passages for off-script questions outside the fixed intent set.</td><td class="dim">Scales with turns/sec that classify as `faq_or_policy_question` — a small slice of total turns.</td><td class="num">Gap-closing addition</td></tr>
+          <tr><td class="num">13</td><td class="svc">tool-gateway</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">The named-function boundary to external systems — the bot never invents a balance or a date.</td><td class="dim">Stateless, scales with tool-call volume, trivially horizontal.</td><td class="num">Gap-closing addition</td></tr>
+          <tr><td class="num">14</td><td class="svc">sentiment-detector</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Tone/emotion classification from audio, alongside (not instead of) intent classification.</td><td class="dim">Same scaling shape as stt-service — runs on the same speaking-segment audio.</td><td class="num">Gap-closing addition</td></tr>
+          <tr><td class="num">15</td><td class="svc">model-router</td><td><span class="pill-tag tier-coord">stateless</span></td><td class="dim">Routes each turn to a small/fast or larger/capable LLM tier based on complexity.</td><td class="dim">Stateless, cheap pre-classifier — scales with turns/sec, negligible cost itself.</td><td class="num">Gap-closing addition</td></tr>
+          <tr><td class="num">16</td><td class="svc">inference-router</td><td><span class="pill-tag tier-gpu">GPU</span></td><td class="dim">Shared batching/load-balancing/model-version-routing layer for all GPU-tier services.</td><td class="dim">Not independently scaled — sits in front of the existing stt/llm/tts GPU pools.</td><td class="num">Gap-closing addition</td></tr>
         </tbody>
       </table>
     </div>
@@ -376,8 +555,8 @@
         <dl class="svc-meta">
           <dt>Why its own service</dt><dd>Centralizing state here is the single design decision that lets call-orchestrator, compliance, and llm-gateway all crash and be replaced mid-call without losing the call.</dd>
           <dt>State</dt><dd>All of it — this is the one genuinely stateful service in the system.</dd>
-          <dt>Dev backend</dt><dd>In-memory dict with the same read/write contract Redis would have.</dd>
-          <dt>Production backend</dt><dd>Redis Cluster, keyed by call-id, sharded by hash slot, with per-key TTL and replication ≥2 per shard.</dd>
+          <dt>Dev backend</dt><dd>In-memory dict with the same read/write contract the production store would have.</dd>
+          <dt>Production backend</dt><dd>Aerospike, keyed by call-id, with per-key TTL and replication ≥2 per partition — chosen over Redis Cluster for its 17-48% lower p99 latency at comparable throughput (both clear the required ~370K ops/sec). Redis Cluster remains a documented alternative if ecosystem maturity is weighted higher.</dd>
         </dl>
       </div>
 
@@ -408,6 +587,61 @@
           <dt>Why its own service</dt><dd>Same reasoning as analytics — cost metering must never sit on the critical path of a live conversation.</dd>
           <dt>State</dt><dd>Owns usage/cost records; doesn't participate in live call state.</dd>
           <dt>Production backend</dt><dd>Kafka-consumed real metering events (GPU-seconds billed, telephony CDRs, agent timesheets), not a synchronous per-call call.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">12</span><span class="svc-name">rag-service</span><span class="pill-tag tier-gpu">GPU tier</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
+        <p class="svc-role">Retrieves the relevant policy/FAQ passage for a borrower question that's real but outside the fixed intent set ("what happens if I miss two payments," "do you report to credit bureaus") — and hands it to compliance as grounded context, never as a bypass of it.</p>
+        <dl class="svc-meta">
+          <dt>Gap it closes</dt><dd>Without it, an off-script question either matches no intent (re-prompt loop) or escalates unnecessarily — both hurt containment rate for a question that has a real, retrievable answer.</dd>
+          <dt>Why its own service</dt><dd>Retrieval is a distinct concern from compliance's job of deciding what's safe/legal to say — compliance still filters every retrieved passage before it reaches the borrower.</dd>
+          <dt>State</dt><dd>Stateless per query; the knowledge base itself is a separately-owned, legally-reviewed store.</dd>
+          <dt>Low-confidence path</dt><dd>No confident match → treated identically to an unknown intent (re-prompt or escalate), never a low-confidence guess reaching the borrower.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">13</span><span class="svc-name">tool-gateway</span><span class="pill-tag tier-coord">stateless</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
+        <p class="svc-role">The single named-function boundary between the conversation and every external system of record — every fact the bot states about an account, and every action it takes, goes through a registered tool call here.</p>
+        <dl class="svc-meta">
+          <dt>Gap it closes</dt><dd>Previously informal — compliance "called out" to the loan servicing backend narratively, with no defined contract or enforced allow-list of what the bot may call.</dd>
+          <dt>Why its own service, separate from compliance</dt><dd>compliance decides WHAT to do; tool-gateway decides HOW that reaches an external system — the tool registry can change without touching the FSM, and vice versa.</dd>
+          <dt>State</dt><dd>Stateless — each call is one named function invocation with its own inputs/outputs.</dd>
+          <dt>Example tools</dt><dd><code>getOutstandingBalance()</code>, <code>schedulePayment()</code>, <code>updateCRM()</code>, <code>requestHumanTransfer()</code>.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">14</span><span class="svc-name">sentiment-detector</span><span class="pill-tag tier-gpu">GPU tier</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
+        <p class="svc-role">Classifies the borrower's tone (calm/frustrated/distressed/angry) from the audio itself, feeding compliance alongside — not instead of — llm-gateway's intent classification, so response strategy can adapt to how someone feels, not just what they said.</p>
+        <dl class="svc-meta">
+          <dt>Gap it closes</dt><dd>Distress detection today is keyword-based only (an `abusive_or_distress` intent triggered by specific phrases) — an agitated borrower who never says a trigger phrase gets the same script as a calm one.</dd>
+          <dt>Why its own service, separate from llm-gateway</dt><dd>Intent answers "what do they want"; sentiment answers "how do they feel while wanting it" — conflating them makes both harder to improve and audit independently.</dd>
+          <dt>State</dt><dd>Stateless per utterance.</dd>
+          <dt>Example use</dt><dd>Angry + any state → lower escalation threshold, without requiring a hardcoded distress phrase.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">15</span><span class="svc-name">model-router</span><span class="pill-tag tier-coord">stateless</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
+        <p class="svc-role">Decides, per turn, whether llm-gateway should run a cheap/fast model or a larger/capable one — turning "pick one model tier for the whole deployment" into a per-request cost/latency decision.</p>
+        <dl class="svc-meta">
+          <dt>Gap it closes</dt><dd>Multiple LLM tiers were already documented with real cost/latency deltas (<code>cost-latency-calculator.html</code>) but the choice was static per-deployment, not per-turn — most turns in a scripted flow are the easy case, which is where the savings are.</dd>
+          <dt>Why its own service, separate from llm-gateway</dt><dd>llm-gateway classifies; model-router makes a cost/latency decision about how to classify — the routing policy can be tuned without touching the classifier.</dd>
+          <dt>The guardrail this needs</dt><dd>Must never reduce escalation-trigger recall — anything the pre-classifier isn't confident is "easy" should default to the larger tier, not the cheaper one.</dd>
+          <dt>State</dt><dd>Stateless — one routing decision per turn.</dd>
+        </dl>
+      </div>
+
+      <div class="svc-card">
+        <div class="svc-head"><span class="svc-num">16</span><span class="svc-name">inference-router</span><span class="pill-tag tier-gpu">GPU tier</span><span class="pill-tag async" style="background:var(--amber-soft); color:var(--amber);">gap-closing</span></div>
+        <p class="svc-role">The shared batching/load-balancing/model-version-routing layer in front of the GPU pools backing stt-service, llm-gateway, and tts-service — not borrower-facing, an internal dispatch layer the GPU-tier services call into.</p>
+        <dl class="svc-meta">
+          <dt>Gap it closes</dt><dd>Continuous batching (vLLM/TensorRT-LLM) and model-version pinning were already specified as part of each GPU-tier service's production backend, but nothing named the component that performs it as shared infrastructure rather than something reimplemented three times.</dd>
+          <dt>Why its own service</dt><dd>Batching/load-balancing/version-routing is the same problem for all three GPU-tier services — solving it once means a batching-efficiency improvement (the single biggest AI-compute cost lever) benefits all three at once.</dd>
+          <dt>State</dt><dd>Tracks in-flight batches and replica health/load — ephemeral, not call state.</dd>
+          <dt>Production backend</dt><dd>NVIDIA Triton Inference Server, or the batching layer built into vLLM/TensorRT-LLM directly.</dd>
         </dl>
       </div>
 

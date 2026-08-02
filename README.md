@@ -29,9 +29,9 @@ VOICE/
 │   ├── call-flow.mmd                  The compliance FSM as a state diagram
 │   └── README.md                      How to render these to PNG
 │
-├── services/                          11 microservices — each main.py is a comment-only spec
+├── services/                          16 microservices — each main.py is a comment-only spec
 │   ├── call-orchestrator/             Coordinates one call's pipeline turn-by-turn
-│   ├── session-manager/               Externalized call-state store (Redis in production)
+│   ├── session-manager/               Externalized call-state store (Aerospike in production)
 │   ├── llm-gateway/                   NLU / intent classification (small fine-tuned LLM in production)
 │   ├── tts-service/                   Streaming text-to-speech (GPU pool)
 │   ├── stt-service/                   Streaming speech-to-text (GPU pool)
@@ -40,12 +40,18 @@ VOICE/
 │   ├── analytics/                     Call-outcome logging + rollup quality metrics
 │   ├── billing/                       Per-call cost metering
 │   ├── scheduler/                     Predictive dialer + live consent/DND/calling-hours gate
-│   └── compliance/                    The FSM: mandatory disclosures, escalation triggers
+│   ├── compliance/                    The FSM: mandatory disclosures, escalation triggers
+│   ├── rag-service/                   Gap-closing: retrieval for off-script policy/FAQ questions
+│   ├── tool-gateway/                  Gap-closing: named-function boundary to external systems
+│   ├── sentiment-detector/            Gap-closing: tone/emotion detection alongside intent
+│   ├── model-router/                  Gap-closing: routes turns to a small vs. large LLM tier
+│   └── inference-router/              Gap-closing: shared GPU batching/load-balancing layer
 │
 ├── infrastructure/                    Comment-only IaC placeholders
 │   ├── terraform/                     Networking, IAM, GPU/CPU node pools
 │   ├── kubernetes/                    Namespaces, Deployments, HPA autoscaling policies
-│   ├── redis/                         session-manager's production backend (Redis Cluster)
+│   ├── aerospike/                     session-manager's production backend (chosen over Redis for p99 latency)
+│   ├── redis/                         session-manager's documented alternative backend
 │   ├── kafka/                         Event backbone for analytics/billing
 │   └── nginx/                         Edge routing / TLS termination
 │
