@@ -99,4 +99,48 @@
 #   separate network hop with its own deploy lifecycle. It's an internal
 #   function of this service's model-call layer, the same way choosing
 #   which specific model file to load already is.
+#
+# -----------------------------------------------------------------------
+# EXECUTION ORDER OF THE THREE FOLDED-IN SUB-TASKS -- DECIDED, NOT LEFT AMBIGUOUS
+# -----------------------------------------------------------------------
+#   Folding three responsibilities into one service (this file) doesn't
+#   automatically decide whether they run sequentially or concurrently --
+#   that was left unstated after the fold and is decided explicitly here:
+#
+#     routing (tiny/cheap) --> intent (small or large tier, per routing)
+#                          \
+#                           +--> sentiment (independent audio-tone model)
+#                          /       [runs CONCURRENTLY with routing+intent]
+#
+#   - `routing` MUST precede `intent`: it decides which model tier intent
+#     classification runs on, so it's a real sequential dependency, not an
+#     arbitrary ordering choice.
+#   - `sentiment` has NO dependency on intent or its model tier -- it's a
+#     separate classifier over the same audio segment. It runs concurrently
+#     with the routing+intent chain, not after it.
+#
+#   LATENCY CONSEQUENCE (docs/latency-budget.md stage [3], ~30-80ms):
+#   this keeps that budget close to accurate rather than roughly tripling
+#   it. Critical path per turn is max(routing_time + intent_time,
+#   sentiment_time), not the sum of all three -- routing is a cheap
+#   pre-classifier (near-negligible), so the path is dominated by
+#   whichever of {intent, sentiment} is slower. The budget may need a
+#   small upward revision (routing's own overhead), not a multiplicative
+#   one.
+#
+#   GPU/THROUGHPUT CONSEQUENCE (docs/scaling.md's 5,556-GPU figure):
+#   concurrency does NOT mean free -- running intent and sentiment at the
+#   same time still requires GPU capacity for both simultaneously, it just
+#   avoids adding their latencies together. The 5,556 figure was sized for
+#   one classification pass; it's still an underestimate with this
+#   execution order, but a smaller one than a naive "3x" reading of
+#   "three sub-tasks" would suggest, because: (a) `routing` is a cheap
+#   pre-classifier (regex or a tiny model), near-negligible GPU cost, and
+#   (b) `sentiment`'s production backend is explicitly a small/lightweight
+#   model (prosody/pitch/energy features), not a second full 1-3B LLM
+#   forward pass. Treat the real figure as somewhat higher than 5,556 --
+#   plausibly 20-50% more GPU capacity to run sentiment alongside intent
+#   at the same concurrency, not 2-3x -- and, as scaling.md already says,
+#   replace this whole estimate with a load-test result before committing
+#   to hardware.
 # =============================================================================

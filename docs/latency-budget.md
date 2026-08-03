@@ -44,6 +44,8 @@ Borrower hears bot start speaking
 
 **[3] llm-gateway + compliance (~30-80ms):** exactly why [architecture.md](architecture.md) rejects a frontier-LLM-per-turn — a hosted frontier API under load routinely adds 300-800ms+ time-to-first-token, blowing the entire budget. A small (1-3B) model served locally with continuous batching, generating a short response, is what makes sub-100ms latency achievable here. `compliance`'s FSM lookup itself is near-instant (a dict lookup), so this stage's latency is almost entirely `llm-gateway`'s.
 
+`llm-gateway` folds in two more sub-tasks (sentiment classification, model-tier routing — see `services/llm-gateway/main.py`'s "EXECUTION ORDER" section for the full reasoning). This budget stays accurate rather than needing to roughly triple because routing→intent (a real sequential dependency, since routing picks intent's model tier) runs *concurrently* with sentiment classification (which depends on neither) — critical path is `max(routing+intent, sentiment)`, not the sum of all three. Expect a small upward revision to this range once routing's own overhead is measured, not a multiplicative one.
+
 **[4] tts-service (~100-200ms):** requires a streaming architecture (audio chunks emitted as synthesized, playback starts on the first chunk) rather than synthesize-then-play. A non-streaming TTS, however good the audio quality, is disqualified on latency grounds alone.
 
 **[5] Network (~20-50ms):** controlled by regional PoP placement (media servers and GPU pools co-located per-region, close to carrier peering points). Cross-region hops would alone consume the entire latency budget and are avoided by design.
