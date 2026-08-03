@@ -59,7 +59,7 @@ These per-GPU throughput numbers are **planning assumptions, not benchmarked fig
 | **Streams/GPU (batching efficiency)** | The single biggest compute-cost lever — doubling batched throughput per GPU halves the AI compute fleet size directly. |
 | **Operating window width** | Spreading calls over 16h instead of 12h cuts peak concurrency by ~25%, at the cost of needing regulatory approval for a wider window. |
 
-Applying the answer-rate correction (AMD filters to 30% of dials reaching the full pipeline): AI compute pool drops to roughly **~12,000 GPUs** — the more realistic planning figure. See [cost-analysis.md](cost-analysis.md) for both scenarios' full cost breakdown.
+Applying the answer-rate correction (AMD filters to 30% of dials reaching the full pipeline): AI compute pool drops to roughly **~11,700 GPUs** (11,667 from `benchmarks/cost_calculator.py`'s actual run — see [cost-analysis.md](cost-analysis.md)) — the more realistic planning figure. See [cost-analysis.md](cost-analysis.md) for both scenarios' full cost breakdown.
 
 ## Service-level scaling notes
 
