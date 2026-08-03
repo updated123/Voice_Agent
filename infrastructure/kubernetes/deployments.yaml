@@ -14,6 +14,10 @@
 #     - stt-service   (asr-gpu-pool)
 #     - llm-gateway   (llm-gpu-pool)
 #     - tts-service   (tts-gpu-pool)
+#     - rag-service   (shares the GPU tier for its embedding model, but
+#       scales with turns/sec classified as faq_or_policy_question --
+#       a small slice of total turns, not full call concurrency like
+#       the other three)
 #
 #   Coordinator tier (one lightweight replica per active call, stateless):
 #     - call-orchestrator

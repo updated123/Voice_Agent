@@ -12,4 +12,9 @@
 #     (docs/architecture.md failure-domain table)
 #   - containment rate drop of >=4 points          (docs/cost-analysis.md:
 #     this alone costs more per day than doubling the GPU fleet)
+#   - no-response rate sustained increase          (docs/monitoring.md) --
+#     tracked as a leading indicator, not just a quality metric: a
+#     sustained rise can mean scheduler's AMD is misclassifying
+#     voicemail/hold-music as live connects (docs/architecture.md's
+#     failure-domain table), not a dialogue-quality regression
 # =============================================================================
