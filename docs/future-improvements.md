@@ -24,6 +24,7 @@ A first pass at closing gaps against an enterprise-conversational-AI component c
 5. **Legal/compliance review per target jurisdiction** — [security.md](security.md) is an engineering-requirements summary, not legal advice; a real deployment needs jurisdiction-specific sign-off before [services/compliance](../services/compliance/)'s FSM scripts are finalized.
 6. **Multilingual expansion** — once English-only is validated end-to-end, extend ASR/TTS/NLU to the actual target languages, with per-language quality tracking from day one rather than bolted on later.
 7. **Real AMD + dial-pacing implementation** in `services/scheduler`, once a carrier relationship exists to test against.
+8. **Decide whether mid-call continuity across a regional outage is actually required, and if so, add cross-region Aerospike replication (XDR or equivalent).** Today, `session-manager`'s replication (`infrastructure/aerospike/aerospike.conf`) is intra-region only — a full regional outage drops every in-flight call in that region; only new calls fail over. [architecture.md](architecture.md)'s failure-domain table now states this plainly, but it was an unstated gap until this pass. If the business requirement is "never drop an in-flight call," this needs real cross-region replication, not just multi-region deployment of stateless services.
 
 ## Considered and cut: voice-biometric fraud detection
 

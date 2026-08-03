@@ -61,6 +61,20 @@ These per-GPU throughput numbers are **planning assumptions, not benchmarked fig
 
 Applying the answer-rate correction (AMD filters to 30% of dials reaching the full pipeline): AI compute pool drops to roughly **~11,700 GPUs** (11,667 from `benchmarks/cost_calculator.py`'s actual run — see [cost-analysis.md](cost-analysis.md)) — the more realistic planning figure. See [cost-analysis.md](cost-analysis.md) for both scenarios' full cost breakdown.
 
+## Step 6: edge/ingress tier (`nginx`) sizing
+
+Unlike every pool above, `infrastructure/nginx/nginx.conf` lists what the edge tier would *do* (TLS termination, regional routing, rate limiting) with no sizing math — a real omission, since it's the first hop of every single request in the system.
+
+A well-tuned nginx instance terminating TLS and reverse-proxying can sustain on the order of 10,000-50,000 concurrent keep-alive connections per box, depending on cipher suite, hardware, and worker-process tuning (highly workload-dependent, more so than the media-server/GPU figures above — treat this range as a rougher planning assumption than those, not a benchmarked number).
+
+```
+edge_nodes_needed = concurrent_calls_peak / connections_per_box
+                   ≈ 2,222,222 / 20,000 (mid-range assumption)
+                   ≈ 112
+```
+
+Round up with N+1 redundancy per region → **~150-200 edge nodes**, small relative to the media-server (~1,500) and GPU (~38,900) tiers, but not zero — and worth naming explicitly rather than leaving as an unsized placeholder, since an under-provisioned edge tier would bottleneck every request behind it regardless of how well everything downstream is sized.
+
 ## Service-level scaling notes
 
 - `call-orchestrator`: one lightweight, stateless replica per concurrently active call (~2.2M at peak) — the highest-replica-count service in the system by design, since it holds no state itself.
