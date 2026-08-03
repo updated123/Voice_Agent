@@ -46,4 +46,52 @@
 # PRODUCTION BACKEND
 #   Silero-VAD (ONNX export), still CPU-only. Swap is isolated to this
 #   service's model-call layer -- the API contract above does not change.
+#
+# -----------------------------------------------------------------------
+# SEMANTIC ENDPOINTING -- gates the hangover timer, doesn't replace it
+# -----------------------------------------------------------------------
+#   THE PROBLEM: pure acoustic silence-duration VAD cannot distinguish a
+#   mid-sentence thinking-pause from a genuine end-of-turn -- a 400ms pause
+#   in the middle of a sentence is acoustically identical to a 400ms pause
+#   at the end of one. "I'll pay... uh... by Friday": if the pause around
+#   "uh" exceeds the hangover window (real disfluency pauses run 300ms-1s,
+#   not reliably under 250ms), this service fires end_of_speech early,
+#   fragmenting one utterance into two independent turns downstream, with
+#   nothing in compliance/llm-gateway able to recognize the second as a
+#   continuation of the first. Retuning hangover_ms cannot fix this: the
+#   same knob that would catch disfluencies faster also makes ordinary
+#   pauses trigger false cutoffs -- it's a real ceiling on acoustic-only
+#   detection, not a tuning gap.
+#
+#   THE FIX -- industry-standard, not a bespoke idea (Deepgram Flux,
+#   AssemblyAI Universal-Streaming/Universal-3 Pro, and LiveKit's
+#   transcript-based end-of-utterance model all do a version of this):
+#   when the acoustic hangover timer is about to expire, don't fire
+#   end_of_speech unconditionally -- run a lightweight completeness check
+#   against stt-service's already-streaming PARTIAL transcript for the
+#   current utterance (the same partial stream docs/latency-budget.md
+#   stage [2] already produces for early classification; this reuses it,
+#   it isn't a new data source). The check looks at grammatical
+#   completeness, trailing filler words/conjunctions ("uh", "and", "so"),
+#   and available intonation cues (falling pitch -> likely done; rising
+#   or flat -> likely continuing). If the partial looks incomplete,
+#   extend the hangover window briefly (one more hangover period) instead
+#   of firing end_of_speech; if it looks complete, or the extension also
+#   times out, finalize as normal.
+#
+#   WHY THIS STAYS CHEAP: the acoustic gate is still the default,
+#   always-on, CPU-only path for every turn -- the semantic check only
+#   runs in the specific moment the hangover timer is about to expire,
+#   not continuously. It adds cost in the disfluency edge case only, so
+#   docs/latency-budget.md stage [1]'s ~150-250ms figure still holds for
+#   the common case.
+#
+#   NEW DEPENDENCY THIS INTRODUCES: this service now needs read access to
+#   stt-service's in-flight partial transcript for the SAME utterance --
+#   a feedback path in the opposite direction of the normal
+#   vad-service -> stt-service data flow. Whether that's wired directly
+#   (stt-service pushes partials back to the owning vad-service instance)
+#   or brokered through call-orchestrator (which already talks to both)
+#   is an implementation choice not decided here; either way it's a new
+#   coupling worth calling out explicitly rather than leaving implicit.
 # =============================================================================

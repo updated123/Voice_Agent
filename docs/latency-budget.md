@@ -38,7 +38,7 @@ Borrower hears bot start speaking
 
 ## Where each stage's latency comes from, and how it's controlled
 
-**[1] vad-service (~150-250ms):** a genuine, unavoidable tradeoff — too short a hangover window and the bot interrupts mid-sentence pauses; too long and every turn feels sluggish. 150-250ms is the established sweet spot.
+**[1] vad-service (~150-250ms):** a genuine, unavoidable tradeoff — too short a hangover window and the bot interrupts mid-sentence pauses; too long and every turn feels sluggish. 150-250ms is the established sweet spot for the *acoustic* gate specifically. It's not sufficient on its own, though: a disfluency pause ("I'll pay... uh... by Friday") can genuinely exceed 250ms, which pure silence-duration VAD cannot distinguish from a real end-of-turn — see [architecture.md](architecture.md)'s "Audio pipeline detail" section for the semantic-endpointing fix (a completeness check on `stt-service`'s streaming partial transcript, gating the acoustic timer) and its industry precedent. That check only fires when the acoustic timer is about to expire, so it adds cost in the disfluency edge case only, not on every turn — this stage's ~150-250ms figure still holds for the common case.
 
 **[2] stt-service (~50-150ms):** streaming ASR with partial hypotheses lets `llm-gateway` often start classification on high-confidence partials *before* the formal "final" transcript event, effectively hiding this stage's latency behind stage [1]'s hangover window.
 
