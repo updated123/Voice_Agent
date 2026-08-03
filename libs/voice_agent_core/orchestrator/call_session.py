@@ -26,6 +26,30 @@ class TranscriptEntry:
     intent: str = ""
     barge_in: bool = False
     escalated: bool = False
+    interrupted: bool = False     # bot entries only: was this response cut short by a genuine barge-in?
+
+
+# Short acknowledgment phrases spoken while the bot is still talking ("mm-hmm",
+# "yeah", "okay") are not an attempt to take the floor -- treating every
+# detected utterance during TTS playback as a real interruption makes the bot
+# read as jumpy/broken. This is a real, honest simplification for this
+# prototype: a live system would need genuine overlapping-audio detection to
+# make this call in real time, not a keyword match against already-transcribed
+# text after the fact (there's no transcript yet at the moment a live system
+# has to decide whether to keep talking). See docs/architecture.md's
+# "Audio pipeline detail" section for the semantic-endpointing discussion this
+# is the barge-in-side counterpart of.
+BACKCHANNEL_PHRASES = frozenset({
+    "mm-hmm", "mhm", "uh-huh", "mm", "yeah", "yep", "okay", "ok",
+    "right", "i see", "got it", "sure", "uh huh",
+})
+
+
+def is_backchannel(text: str) -> bool:
+    """True if `text` is a short acknowledgment rather than an attempt to
+    interrupt -- a barge-in-flagged turn matching this should NOT cut the
+    bot's TTS stream."""
+    return text.strip().lower().rstrip(".!?") in BACKCHANNEL_PHRASES
 
 
 def make_synthetic_audio(text: str, sample_rate: int = 16000, add_noise: bool = False) -> np.ndarray:

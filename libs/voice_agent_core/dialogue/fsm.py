@@ -88,6 +88,21 @@ TERMINAL_STATES = frozenset({
     CallState.ENDED,
 })
 
+# States carrying a legally-mandatory disclosure (docs/security.md) -- these
+# are never barge-in-able. This is a deliberate "prevent, don't recover"
+# choice: allowing interruption and then trying to resume/replay a partially
+# delivered disclosure is real added complexity for an uncertain compliance
+# benefit, since what regulators want is confirmation the disclosure was
+# delivered in full, not "we tried, got cut off, and did our best after."
+# Making these states categorically uninterruptible resolves the ambiguity
+# by construction -- if it can never be interrupted, it's always fully
+# delivered, full stop. Same "structurally guaranteed, not just likely"
+# philosophy as the rest of this FSM.
+MANDATORY_DISCLOSURE_STATES = frozenset({
+    CallState.OPENING_DISCLOSURE,
+    CallState.DEBT_DISCLOSURE,
+})
+
 
 class CallFSM:
     def __init__(self, start: CallState = CallState.OPENING_DISCLOSURE):

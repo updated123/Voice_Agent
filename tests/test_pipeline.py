@@ -187,3 +187,59 @@ def test_full_pipeline_with_noise_injection_and_barge_in_does_not_crash():
     ]
     log = asyncio.run(pipeline.run_call(script))
     assert len(log) >= 3
+    # The second turn is a genuine (non-backchannel) barge-in against the
+    # bot's identity_verification response -- it should actually interrupt,
+    # not just fail to crash.
+    assert any(entry.interrupted for entry in log)
+
+
+def test_backchannel_does_not_interrupt_bot():
+    """A short acknowledgment ("mm-hmm") during bot playback is not an
+    attempt to take the floor -- it must not cut the bot off."""
+    asr = MockASR()
+    tts = MockStreamingTTS()
+    pipeline = VoiceAgentPipeline(asr=asr, tts=tts)
+
+    script = [
+        ScriptedBorrowerTurn(text="yes this is me"),
+        ScriptedBorrowerTurn(text="mm-hmm", barge_in=True),
+    ]
+    log = asyncio.run(pipeline.run_call(script))
+
+    assert not any(entry.interrupted for entry in log)
+
+
+def test_genuine_barge_in_interrupts_non_mandatory_response():
+    """A real interruption (non-backchannel text, barge_in=True) against a
+    non-mandatory-disclosure response must actually cut the bot off."""
+    asr = MockASR()
+    tts = MockStreamingTTS()
+    pipeline = VoiceAgentPipeline(asr=asr, tts=tts)
+
+    script = [
+        ScriptedBorrowerTurn(text="yes this is me"),
+        ScriptedBorrowerTurn(text="actually never mind call me back later", barge_in=True),
+    ]
+    log = asyncio.run(pipeline.run_call(script))
+
+    identity_verification_entry = next(e for e in log if e.state == "identity_verification")
+    assert identity_verification_entry.interrupted
+
+
+def test_mandatory_disclosure_is_never_interrupted():
+    """The opening disclosure carries mandatory legal language
+    (docs/security.md) -- it must play out in full even if the very next
+    borrower turn is flagged as a genuine barge-in, never partially
+    delivered. See dialogue/fsm.py's MANDATORY_DISCLOSURE_STATES."""
+    asr = MockASR()
+    tts = MockStreamingTTS()
+    pipeline = VoiceAgentPipeline(asr=asr, tts=tts)
+
+    script = [
+        ScriptedBorrowerTurn(text="actually never mind call me back later", barge_in=True),
+    ]
+    log = asyncio.run(pipeline.run_call(script))
+
+    opening_entry = log[0]
+    assert opening_entry.state == "opening_disclosure"
+    assert not opening_entry.interrupted

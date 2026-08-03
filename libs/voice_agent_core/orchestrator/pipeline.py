@@ -10,15 +10,22 @@ interface (VADBackend, ASRBackend, DialogueManager, TTSBackend).
 """
 
 import asyncio
+from typing import Optional
 
 import numpy as np
 
 from ..asr.base import ASRBackend
 from ..asr.mock_asr import SyntheticUtterance
 from ..denoiser.spectral_gate import SpectralGateDenoiser
+from ..dialogue.fsm import MANDATORY_DISCLOSURE_STATES, CallState
 from ..dialogue.manager import DialogueManager
 from ..tts.base import TTSBackend
-from .call_session import ScriptedBorrowerTurn, TranscriptEntry, make_synthetic_audio
+from .call_session import (
+    ScriptedBorrowerTurn,
+    TranscriptEntry,
+    is_backchannel,
+    make_synthetic_audio,
+)
 
 # Simulated barge-in cutoff: how many TTS chunks play before an interrupting
 # borrower turn is deemed to have stopped the bot (docs/architecture.md
@@ -64,28 +71,53 @@ class VoiceAgentPipeline:
         await asyncio.sleep(0)
         return transcript.text
 
+    @staticmethod
+    def _should_allow_barge_in(current_state: CallState, next_turn: Optional[ScriptedBorrowerTurn]) -> bool:
+        """Decide whether the response about to be played for `current_state`
+        may be interrupted by `next_turn` (the borrower turn that follows it).
+
+        Two independent reasons to say no, checked in order:
+        1. Mandatory-disclosure states are never interruptible -- see
+           dialogue/fsm.py's MANDATORY_DISCLOSURE_STATES for why this is a
+           "prevent, don't recover" choice rather than resume-after-cutoff
+           logic.
+        2. A backchannel ("mm-hmm", "okay") is an acknowledgment, not an
+           attempt to take the floor -- it should never cut the bot off,
+           regardless of state.
+        """
+        if current_state in MANDATORY_DISCLOSURE_STATES:
+            return False
+        if next_turn is None or not next_turn.barge_in:
+            return False
+        return not is_backchannel(next_turn.text)
+
     async def run_call(self, script: list[ScriptedBorrowerTurn]) -> list[TranscriptEntry]:
         """Run one simulated call end-to-end. Returns the full transcript log."""
         log: list[TranscriptEntry] = []
 
         opening = self.dialogue_manager.opening_turn()
-        _, interrupted = await self._play_tts(opening.response_text, allow_barge_in=False)
+        next_turn = script[0] if script else None
+        allow_barge_in = self._should_allow_barge_in(opening.state, next_turn)
+        _, interrupted = await self._play_tts(opening.response_text, allow_barge_in=allow_barge_in)
         log.append(TranscriptEntry(
-            speaker="bot", text=opening.response_text, state=opening.state.value,
+            speaker="bot", text=opening.response_text, state=opening.state.value, interrupted=interrupted,
         ))
 
-        for turn in script:
+        for i, turn in enumerate(script):
             recognized_text = await self._process_borrower_turn(turn)
             log.append(TranscriptEntry(speaker="borrower", text=recognized_text, barge_in=turn.barge_in))
 
             dialogue_turn = self.dialogue_manager.handle_turn(recognized_text)
-            _, interrupted = await self._play_tts(dialogue_turn.response_text, allow_barge_in=False)
+            next_turn = script[i + 1] if i + 1 < len(script) else None
+            allow_barge_in = self._should_allow_barge_in(dialogue_turn.state, next_turn)
+            _, interrupted = await self._play_tts(dialogue_turn.response_text, allow_barge_in=allow_barge_in)
             log.append(TranscriptEntry(
                 speaker="bot",
                 text=dialogue_turn.response_text,
                 state=dialogue_turn.state.value,
                 intent=dialogue_turn.intent.value,
                 escalated=dialogue_turn.should_escalate,
+                interrupted=interrupted,
             ))
 
             if dialogue_turn.call_ended:
