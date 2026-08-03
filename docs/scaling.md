@@ -48,6 +48,8 @@ GPU pools only need to be sized for concurrently *speaking* calls, not all conne
 
 These per-GPU throughput numbers are **planning assumptions, not benchmarked figures** — real numbers depend on model choice, quantization, sequence length, and GPU SKU, and should be replaced with load-test results before committing to hardware.
 
+**`llm-gateway`'s 400 streams/GPU predates folding sentiment classification and model-tier routing into it** (see `docs/architecture.md`'s "Consolidated into an existing service" section) — this table was never updated to reflect that `llm-gateway` now runs strictly more inference per request (intent + sentiment + a routing pre-classifier) than a single intent-only classification call. This wasn't a new gap introduced by the consolidation, though: sentiment classification's compute cost was never counted anywhere in this table even when it was a separate `sentiment-detector` service — its own row back then said "Gap-closing addition" with no GPU figure, meaning it was already missing from the 38,900 total. Folding it in just makes the omission visible instead of hidden across two rows. Treat 5,556 as an underestimate for `llm-gateway`'s real GPU need until a load test replaces it — this is exactly the kind of number "should be replaced with load-test results" above is warning about.
+
 ## Step 5: sensitivity — what moves this number the most
 
 | Lever | Effect |
